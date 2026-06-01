@@ -27,7 +27,7 @@ fit_rkhs_quantile <- function(X, y,
   
   # ------------------- GCV for lambda -------------------
   if (is.null(lambda) && use_gcv) {
-    lambda_grid <- 10^seq(-6, -1, length.out = 25)   # safer range
+    lambda_grid <- 10^seq(-7, -1, length.out = 40)   # safer range
     
     gcv_scores <- numeric(length(lambda_grid))
     
@@ -47,7 +47,7 @@ fit_rkhs_quantile <- function(X, y,
       df <- sum(diag(solve(A, K_train)))
       
       penalty <- (1 - df / n)^2
-      gcv_scores[i] <- train_loss / max(penalty, 1e-8)
+      gcv_scores[i] <- train_loss/penalty #/ max(penalty, 1e-8)
     }
     
     best_idx <- which.min(gcv_scores)
