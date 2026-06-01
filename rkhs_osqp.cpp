@@ -1,91 +1,188 @@
 // [[Rcpp::depends(RcppArmadillo)]]
 #include <RcppArmadillo.h>
+#include <boost/math/special_functions/bessel.hpp>
+#include <boost/math/special_functions/gamma.hpp>
+
 using namespace Rcpp;
 using namespace arma;
 
-// =============================================
-// Helper: Euclidean distance matrix
-// =============================================
-mat dist_matrix(const mat& X, const mat& Y) {
-    int n = X.n_rows, m = Y.n_rows;
-    mat D(n, m);
-    for(int i = 0; i < n; i++) {
-        D.row(i) = sqrt(sum(pow(X.row(i) - Y.each_row(), 2), 1)).t();
+
+// ============================================================
+// FAST Euclidean distance matrix (much faster than row tricks)
+// ============================================================
+static arma::mat dist_matrix(const arma::mat& X, const arma::mat& Y) {
+    const arma::uword n = X.n_rows;
+    const arma::uword m = Y.n_rows;
+
+    arma::mat D(n, m, fill::zeros);
+
+    for (arma::uword i = 0; i < n; ++i) {
+        for (arma::uword j = 0; j < m; ++j) {
+            D(i, j) = norm(X.row(i) - Y.row(j), 2);
+        }
     }
     return D;
 }
 
-// =============================================
-// Kernels
-// =============================================
-// [[Rcpp::export]]
-mat gaussian_kernel(const mat& X, const mat& Y, double ls = 1.0) {
-    return exp(-0.5 * pow(dist_matrix(X, Y)/ls, 2));
+
+// ============================================================
+// Gaussian kernel
+// ============================================================
+arma::mat gaussian_kernel(const arma::mat& X,
+                          const arma::mat& Y,
+                          double ls = 1.0) {
+
+    arma::mat D = dist_matrix(X, Y) / ls;
+    return arma::exp(-0.5 * arma::square(D));
 }
 
-// [[Rcpp::export]]
-mat matern52_kernel(const mat& X, const mat& Y, double ls = 1.0) {
-    mat D = dist_matrix(X, Y) / ls;
-    mat tmp = sqrt(5.0) * D;
-    return (1.0 + tmp + (tmp % tmp)/3.0) % exp(-tmp);
-}
 
-// =============================================
-// Smoothed subgradient of quantile (pinball) loss
-// =============================================
-vec smoothed_quantile_psi(const vec& r, double tau, double epsilon = 1e-5) {
-    vec psi = -tau * ones(r.n_elem);      // base for negative residuals
-    psi.elem(find(r > 0)) += 1.0;         // adjust for positive residuals
-    
-    // Smooth approximation around zero
-    uvec near_zero = find(abs(r) < epsilon);
-    if (near_zero.n_elem > 0) {
-        psi(near_zero) = (r(near_zero) / (2.0 * epsilon)) + (0.5 - tau);
+// ============================================================
+// Matérn kernel (Sobolev-parametrised)
+// m > d/2, ν = m - d/2
+// ============================================================
+arma::mat matern_kernel(const arma::mat& X,
+                        const arma::mat& Y,
+                        double m,
+                        double ls = 1.0) {
+
+    const arma::uword d = X.n_cols;
+    const double nu = m - 0.5 * d;
+
+    if (X.n_cols != Y.n_cols)
+        Rcpp::stop("X and Y must have same dimension.");
+
+    if (ls <= 0)
+        Rcpp::stop("ls must be positive.");
+
+    if (nu <= 0)
+        Rcpp::stop("Need m > d/2.");
+
+    arma::mat D = dist_matrix(X, Y) / ls;
+
+    // -----------------------------
+    // Half-integer shortcuts
+    // -----------------------------
+    if (std::abs(nu - 0.5) < 1e-12)
+        return arma::exp(-D);
+
+    if (std::abs(nu - 1.5) < 1e-12) {
+        arma::mat T = std::sqrt(3.0) * D;
+        return (1.0 + T) % arma::exp(-T);
     }
+
+    if (std::abs(nu - 2.5) < 1e-12) {
+        arma::mat T = std::sqrt(5.0) * D;
+        return (1.0 + T + (T % T) / 3.0) % arma::exp(-T);
+    }
+
+    // -----------------------------
+    // General Bessel form
+    // -----------------------------
+    arma::mat K(D.n_rows, D.n_cols);
+
+    const double a = std::sqrt(2.0 * nu);
+    const double c = std::pow(2.0, 1.0 - nu) / boost::math::tgamma(nu);
+
+    for (arma::uword i = 0; i < D.n_rows; ++i) {
+        for (arma::uword j = 0; j < D.n_cols; ++j) {
+
+            const double r = D(i, j);
+
+            if (r < 1e-12) {
+                K(i, j) = 1.0;
+                continue;
+            }
+
+            const double z = a * r;
+
+            K(i, j) =
+                c *
+                std::pow(z, nu) *
+                boost::math::cyl_bessel_k(nu, z);
+        }
+    }
+
+    return K;
+}
+
+
+// ============================================================
+// Smoothed quantile subgradient
+// ============================================================
+arma::vec smoothed_quantile_psi(const arma::vec& r,
+                                 double tau,
+                                 double eps = 1e-5) {
+
+    arma::vec psi = -tau * arma::ones(r.n_elem);
+    psi.elem(arma::find(r > 0)).fill(1.0 - tau);
+
+    arma::uvec idx = arma::find(arma::abs(r) < eps);
+
+    if (!idx.is_empty()) {
+        psi(idx) = (r(idx) / (2.0 * eps)) + (0.5 - tau);
+    }
+
     return psi;
 }
 
-// =============================================
-// Main IRLS solver for smoothed quantile loss
-// =============================================
-// [[Rcpp::export]]
-List rkhs_quantile_irls(const mat& K, const vec& y, 
-                       double tau = 0.5, double lambda = 1e-4,
-                       double epsilon = 1e-4, int max_iter = 100, double tol = 1e-6) {
-    
-    int n = K.n_rows;
-    vec alpha = zeros(n);           // coefficients in RKHS (representer theorem)
-    int final_iter = 0;
-    
-    for(int iter = 0; iter < max_iter; iter++) {
-        final_iter = iter + 1;
-        
-        vec f = K * alpha;                    // current predictions
-        vec r = y - f;                        // residuals
-        
-        // Compute smoothed subgradient and weights
-        vec psi = smoothed_quantile_psi(r, tau, epsilon);
-        vec w = abs(psi);
-        w.elem(find(w < 1e-8)).fill(1e-8);    // prevent zero weights
-        
-        // Weighted least squares system
-        mat W = diagmat(w);
-        mat lhs = K * W * K + (n * lambda) * K;   // no extra ridge
-        vec rhs = K * (w % y);
-        
-        vec alpha_new;
-        try {
-            alpha_new = solve(lhs, rhs, solve_opts::likely_sympd);
-        } catch (...) {
-            alpha_new = alpha;   // fallback on failure
+
+// ============================================================
+// IRLS solver in RKHS
+// ============================================================
+Rcpp::List rkhs_quantile_irls(const arma::mat& K,
+                              const arma::vec& y,
+                              double tau = 0.5,
+                              double lambda = 1e-4,
+                              double eps = 1e-4,
+                              int max_iter = 50,
+                              double tol = 1e-6) {
+
+    const arma::uword n = K.n_rows;
+
+    arma::vec alpha(n, fill::zeros);
+
+    arma::mat A;   // system matrix reused
+
+    int iter = 0;
+
+    for (; iter < max_iter; ++iter) {
+
+        arma::vec f = K * alpha;
+        arma::vec r = y - f;
+
+        arma::vec psi = smoothed_quantile_psi(r, tau, eps);
+
+        arma::vec w = arma::abs(psi);
+        w = arma::clamp(w, 1e-8, arma::datum::inf);
+
+        // -----------------------------
+        // Stable weighted system:
+        // K W K + n λ K
+        // -----------------------------
+        arma::mat KW = K.each_row() % w.t();  // K * W efficiently
+
+        A = KW * K + (n * lambda) * K;
+
+        arma::vec rhs = K * (w % y);
+
+        arma::vec alpha_new;
+
+        bool ok = arma::solve(alpha_new, A, rhs, arma::solve_opts::likely_sympd);
+
+        if (!ok)
+            break;
+
+        if (arma::norm(alpha_new - alpha, 2) < tol) {
+            alpha = alpha_new;
+            break;
         }
-        
-        double diff = norm(alpha_new - alpha, 2);
+
         alpha = alpha_new;
-        
-        if (diff < tol) break;
     }
-    
-    return List::create(Named("alpha") = alpha,
-                        Named("iterations") = final_iter);
+
+    return Rcpp::List::create(
+        Rcpp::Named("alpha") = alpha,
+        Rcpp::Named("iterations") = iter + 1
+    );
 }
