@@ -1,4 +1,7 @@
 // [[Rcpp::depends(RcppArmadillo)]]
+#define ARMA_NO_DEBUG
+#define ARMA_WARN_LEVEL 1
+
 #include <RcppArmadillo.h>
 #include <boost/math/special_functions/bessel.hpp>
 #include <boost/math/special_functions/gamma.hpp>
@@ -6,183 +9,156 @@
 using namespace Rcpp;
 using namespace arma;
 
-
 // ============================================================
-// FAST Euclidean distance matrix (much faster than row tricks)
+// Distance matrix
 // ============================================================
-static arma::mat dist_matrix(const arma::mat& X, const arma::mat& Y) {
-    const arma::uword n = X.n_rows;
-    const arma::uword m = Y.n_rows;
-
-    arma::mat D(n, m, fill::zeros);
-
-    for (arma::uword i = 0; i < n; ++i) {
-        for (arma::uword j = 0; j < m; ++j) {
+static mat dist_matrix(const mat& X, const mat& Y) {
+    uword n = X.n_rows, m = Y.n_rows;
+    mat D(n, m);
+    for (uword i = 0; i < n; ++i) {
+        for (uword j = 0; j < m; ++j) {
             D(i, j) = norm(X.row(i) - Y.row(j), 2);
         }
     }
     return D;
 }
 
-
 // ============================================================
 // Gaussian kernel
 // ============================================================
-arma::mat gaussian_kernel(const arma::mat& X,
-                          const arma::mat& Y,
-                          double ls = 1.0) {
-
-    arma::mat D = dist_matrix(X, Y) / ls;
-    return arma::exp(-0.5 * arma::square(D));
+// [[Rcpp::export]]
+mat gaussian_kernel(const mat& X, const mat& Y, double ls = 1.0) {
+    mat D = dist_matrix(X, Y) / ls;
+    return exp(-0.5 * square(D));
 }
 
-
 // ============================================================
-// Matérn kernel (Sobolev-parametrised)
-// m > d/2, ν = m - d/2
+// Matérn kernel
 // ============================================================
-arma::mat matern_kernel(const arma::mat& X,
-                        const arma::mat& Y,
-                        double m,
-                        double ls = 1.0) {
+// [[Rcpp::export]]
+mat matern_kernel(const mat& X, const mat& Y, double m = 2.5, double ls = 1.0) {
+    uword d = X.n_cols;
+    double nu = m - 0.5 * d;
 
-    const arma::uword d = X.n_cols;
-    const double nu = m - 0.5 * d;
+    if (X.n_cols != Y.n_cols) stop("X and Y must have the same number of columns");
+    if (ls <= 0) stop("length_scale must be positive");
+    if (nu <= 0) stop("m must be > d/2");
 
-    if (X.n_cols != Y.n_cols)
-        Rcpp::stop("X and Y must have same dimension.");
+    mat D = dist_matrix(X, Y) / ls;
 
-    if (ls <= 0)
-        Rcpp::stop("ls must be positive.");
-
-    if (nu <= 0)
-        Rcpp::stop("Need m > d/2.");
-
-    arma::mat D = dist_matrix(X, Y) / ls;
-
-    // -----------------------------
-    // Half-integer shortcuts
-    // -----------------------------
-    if (std::abs(nu - 0.5) < 1e-12)
-        return arma::exp(-D);
-
-    if (std::abs(nu - 1.5) < 1e-12) {
-        arma::mat T = std::sqrt(3.0) * D;
-        return (1.0 + T) % arma::exp(-T);
+    if (std::abs(nu - 0.5) < 1e-8) return exp(-D);
+    if (std::abs(nu - 1.5) < 1e-8) {
+        mat T = sqrt(3.0) * D;
+        return (1.0 + T) % exp(-T);
+    }
+    if (std::abs(nu - 2.5) < 1e-8) {
+        mat T = sqrt(5.0) * D;
+        return (1.0 + T + (T % T)/3.0) % exp(-T);
     }
 
-    if (std::abs(nu - 2.5) < 1e-12) {
-        arma::mat T = std::sqrt(5.0) * D;
-        return (1.0 + T + (T % T) / 3.0) % arma::exp(-T);
-    }
+    // General case
+    mat K(D.n_rows, D.n_cols, fill::zeros);
+    double a = sqrt(2.0 * nu);
+    double c = pow(2.0, 1.0 - nu) / boost::math::tgamma(nu);
 
-    // -----------------------------
-    // General Bessel form
-    // -----------------------------
-    arma::mat K(D.n_rows, D.n_cols);
-
-    const double a = std::sqrt(2.0 * nu);
-    const double c = std::pow(2.0, 1.0 - nu) / boost::math::tgamma(nu);
-
-    for (arma::uword i = 0; i < D.n_rows; ++i) {
-        for (arma::uword j = 0; j < D.n_cols; ++j) {
-
-            const double r = D(i, j);
-
+    for (uword i = 0; i < D.n_rows; ++i) {
+        for (uword j = 0; j < D.n_cols; ++j) {
+            double r = D(i, j);
             if (r < 1e-12) {
                 K(i, j) = 1.0;
                 continue;
             }
-
-            const double z = a * r;
-
-            K(i, j) =
-                c *
-                std::pow(z, nu) *
-                boost::math::cyl_bessel_k(nu, z);
+            double z = a * r;
+            K(i, j) = c * pow(z, nu) * boost::math::cyl_bessel_k(nu, z);
         }
     }
-
     return K;
 }
 
-
 // ============================================================
-// Smoothed quantile subgradient
+// Smoothed quantile psi
 // ============================================================
-arma::vec smoothed_quantile_psi(const arma::vec& r,
-                                 double tau,
-                                 double eps = 1e-5) {
+vec smoothed_quantile_psi(const vec& r, double tau, double eps = 1e-4) {
+    vec psi = -tau * ones(r.n_elem);
+    psi.elem(find(r > 0)) += 1.0;
 
-    arma::vec psi = -tau * arma::ones(r.n_elem);
-    psi.elem(arma::find(r > 0)).fill(1.0 - tau);
-
-    arma::uvec idx = arma::find(arma::abs(r) < eps);
-
-    if (!idx.is_empty()) {
-        psi(idx) = (r(idx) / (2.0 * eps)) + (0.5 - tau);
+    uvec near_zero = find(abs(r) < eps);
+    if (!near_zero.is_empty()) {
+        psi(near_zero) = (r(near_zero) / (2.0 * eps)) + (0.5 - tau);
     }
-
     return psi;
 }
 
-
 // ============================================================
-// IRLS solver in RKHS
+// Main IRLS solver
 // ============================================================
-Rcpp::List rkhs_quantile_irls(const arma::mat& K,
-                              const arma::vec& y,
-                              double tau = 0.5,
-                              double lambda = 1e-4,
-                              double eps = 1e-4,
-                              int max_iter = 50,
-                              double tol = 1e-6) {
+// [[Rcpp::export]]
+List rkhs_quantile_irls(const mat& K, const vec& y,
+                       double tau = 0.5,
+                       double lambda = 1e-4,
+                       double eps = 1e-4,
+                       int max_iter = 60,
+                       double tol = 1e-6) {
 
-    const arma::uword n = K.n_rows;
+    uword n = K.n_rows;
+    vec alpha(n, fill::zeros);
+    int final_iter = 0;
 
-    arma::vec alpha(n, fill::zeros);
+    for (int iter = 0; iter < max_iter; ++iter) {
+        final_iter = iter + 1;
 
-    arma::mat A;   // system matrix reused
+        vec f = K * alpha;
+        vec r = y - f;
 
-    int iter = 0;
+        vec psi = smoothed_quantile_psi(r, tau, eps);
+        vec w = abs(psi);
+        w = w / (mean(w) + 1e-12);
+        w = clamp(w, 1e-3, 5.0);
 
-    for (; iter < max_iter; ++iter) {
+        mat W = diagmat(w);
+        mat A = K * W * K + lambda * K;
+        A.diag() += 1e-12;
 
-        arma::vec f = K * alpha;
-        arma::vec r = y - f;
+        vec rhs = K * (w % y);
 
-        arma::vec psi = smoothed_quantile_psi(r, tau, eps);
+        vec alpha_new;
+        bool success = solve(alpha_new, A, rhs, solve_opts::likely_sympd);
 
-        arma::vec w = arma::abs(psi);
-        w = arma::clamp(w, 1e-8, arma::datum::inf);
-
-        // -----------------------------
-        // Stable weighted system:
-        // K W K + n λ K
-        // -----------------------------
-        arma::mat KW = K.each_row() % w.t();  // K * W efficiently
-
-        A = KW * K + (n * lambda) * K;
-
-        arma::vec rhs = K * (w % y);
-
-        arma::vec alpha_new;
-
-        bool ok = arma::solve(alpha_new, A, rhs, arma::solve_opts::likely_sympd);
-
-        if (!ok)
-            break;
-
-        if (arma::norm(alpha_new - alpha, 2) < tol) {
-            alpha = alpha_new;
+        if (!success) {
+            warning("Solve failed at iteration %d", iter+1);
             break;
         }
 
+        double diff = norm(alpha_new - alpha, 2);
         alpha = alpha_new;
+
+        if (diff < tol) break;
     }
 
-    return Rcpp::List::create(
-        Rcpp::Named("alpha") = alpha,
-        Rcpp::Named("iterations") = iter + 1
+    return List::create(
+        Named("alpha")      = alpha,
+        Named("fitted")     = K * alpha,
+        Named("iterations") = final_iter
     );
+}
+
+// ============================================================
+// Fast prediction
+// ============================================================
+// [[Rcpp::export]]
+vec rkhs_predict(const mat& X_train,
+                 const mat& X_new,
+                 const vec& alpha,
+                 String kernel_type,
+                 double ls = 1.0,
+                 double m = 2.5) {
+    
+    mat K_new;
+    if (kernel_type == "gaussian") {
+        K_new = gaussian_kernel(X_train, X_new, ls);
+    } else {
+        K_new = matern_kernel(X_train, X_new, m, ls);
+    }
+    
+    return trans(K_new) * alpha;   // n_new x n_train  *  n_train x 1
 }
