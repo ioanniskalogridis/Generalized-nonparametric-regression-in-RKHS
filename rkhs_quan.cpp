@@ -97,7 +97,7 @@ List rkhs_quantile_irls(const mat& K, const vec& y,
                        double tau = 0.5,
                        double lambda = 1e-4,
                        double eps = 1e-4,
-                       int max_iter = 60,
+                       int max_iter = 100,
                        double tol = 1e-6) {
 
     uword n = K.n_rows;

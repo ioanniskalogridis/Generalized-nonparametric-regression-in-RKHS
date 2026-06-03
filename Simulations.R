@@ -7,7 +7,7 @@ n <- 300
 X <- matrix(runif(n), nrow = n, ncol = 1)
 
 f_true <- function(x) sin(2 * pi * x) + 0.5 * x^2
-y <- f_true(X) + rnorm(n, sd = 0.6)
+y <- f_true(X) + rt(n, df = 1) #+rnorm(n, sd = 0.6)
 
 cat("Data generated: n =", n, "\n")
 
@@ -18,7 +18,7 @@ fit <- fit_rkhs_quantile(
   tau = 0.5,
   kernel = "gaussian",
   m = 2.5,
-  length_scale = 0.8,
+  length_scale = 1,
   use_gcv = TRUE
 )
 
@@ -37,7 +37,7 @@ preds <- fit$predictor(X_new)
 cat("Prediction successful! Length =", length(preds), "\n")
 
 # 6. Plot
-plot(X[,1], y, pch = 16, col = rgb(0,0,0,0.4), 
+plot(X[,1], y, pch = 16, col = rgb(0,0,0,0.4), ylim = c(-2, 2),
      main = "RKHS Quantile Regression (τ = 0.5)",
      xlab = "x", ylab = "y", cex = 0.8)
 
