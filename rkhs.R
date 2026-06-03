@@ -3,15 +3,18 @@ setwd("C:/Users/ik77w/OneDrive - University of Glasgow/Documents/GitHub/Generali
 library(Rcpp)
 library(RcppArmadillo)
 
-sourceCpp("rkhs_osqp.cpp")
+sourceCpp("rkhs_quan.cpp")
 
 # =============================================
 # Optimized RKHS Quantile Regression
 # =============================================
+# =============================================
+# RKHS Quantile Regression with Spherical Kernel
+# =============================================
 fit_rkhs_quantile <- function(X, y,
                               tau = 0.5,
                               lambda = NULL,
-                              kernel = c("matern", "gaussian"),
+                              kernel = c("matern", "gaussian", "spherical"),
                               m = 2.5,
                               length_scale = 1.0,
                               use_gcv = TRUE) {
@@ -22,14 +25,18 @@ fit_rkhs_quantile <- function(X, y,
   y <- as.numeric(y)
   n <- nrow(X_train)
   
+  # =====================================================
   # Kernel matrix
-  K_train <- if (kernel == "gaussian") {
-    gaussian_kernel(X_train, X_train, ls = length_scale)
-  } else {
-    matern_kernel(X_train, X_train, m = m, ls = length_scale)
-  }
+  # =====================================================
+  K_train <- switch(kernel,
+                    "gaussian"  = gaussian_kernel(X_train, X_train, ls = length_scale),
+                    "matern"    = matern_kernel(X_train, X_train, m = m, ls = length_scale),
+                    "spherical" = spherical_kernel(X_train, X_train)
+  )
   
+  # =====================================================
   # GCV for lambda
+  # =====================================================
   if (is.null(lambda) && use_gcv) {
     lambda_grid <- 10^seq(-6, -1, length.out = 25)
     gcv_scores <- numeric(length(lambda_grid))
@@ -39,7 +46,7 @@ fit_rkhs_quantile <- function(X, y,
       fit_tmp <- rkhs_quantile_irls(K_train, y, tau = tau, lambda = lam)
       alpha_tmp <- as.numeric(fit_tmp$alpha)
       
-      fitted <- as.vector(K_train %*% alpha_tmp)   # safe in-sample
+      fitted <- as.vector(K_train %*% alpha_tmp)
       residuals <- y - fitted
       train_loss <- mean(pmax(tau * residuals, (tau - 1) * residuals))
       
@@ -55,13 +62,24 @@ fit_rkhs_quantile <- function(X, y,
     cat("GCV selected lambda =", format(lambda, scientific = TRUE), "\n")
   }
   
+  # =====================================================
   # Final fit
+  # =====================================================
   fit <- rkhs_quantile_irls(K_train, y, tau = tau, lambda = lambda)
   alpha <- as.numeric(fit$alpha)
   
-  # Fast predictor using C++
+  # =====================================================
+  # Fast Predictor
+  # =====================================================
   predictor <- function(X_new) {
     X_new <- as.matrix(X_new)
+    
+    K_new <- switch(kernel,
+                    "gaussian"  = gaussian_kernel(X_train, X_new, ls = length_scale),
+                    "matern"    = matern_kernel(X_train, X_new, m = m, ls = length_scale),
+                    "spherical" = spherical_kernel(X_train, X_new)
+    )
+    
     as.vector(rkhs_predict(X_train, X_new, alpha, 
                            kernel_type = kernel,
                            ls = length_scale,

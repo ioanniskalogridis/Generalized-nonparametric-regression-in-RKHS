@@ -76,6 +76,25 @@ mat matern_kernel(const mat& X, const mat& Y, double m = 2.5, double ls = 1.0) {
 }
 
 // ============================================================
+// Spherical / Zonal kernel: K(x,y) = 1 / (2 - <x,y>)
+// ============================================================
+// [[Rcpp::export]]
+mat spherical_kernel(const mat& X, const mat& Y) {
+    uword n = X.n_rows, m = Y.n_rows;
+    mat K(n, m);
+    
+    for (uword i = 0; i < n; ++i) {
+        for (uword j = 0; j < m; ++j) {
+            double inner = dot(X.row(i), Y.row(j));
+            double denom = 2.0 - inner;
+            K(i, j) = (denom > 1e-12) ? 1.0 / denom : 1e12;  // avoid division by zero
+        }
+    }
+    return K;
+}
+
+
+// ============================================================
 // Smoothed quantile psi
 // ============================================================
 vec smoothed_quantile_psi(const vec& r, double tau, double eps = 1e-4) {
