@@ -1,17 +1,13 @@
-# =============================================
-# SMALL TEST EXAMPLE
-# =============================================
+nsim <- 200
 
-# 2. Generate small 1D dataset
-n <- 300
+n <- 200
 X <- matrix(runif(n), nrow = n, ncol = 1)
 
 f_true <- function(x) sin(2 * pi * x) + 0.5 * x^2
 y <- f_true(X) + rt(n, df = 1) #+rnorm(n, sd = 0.6)
 
-cat("Data generated: n =", n, "\n")
 
-# 3. Fit the model
+
 fit <- fit_rkhs_quantile(
   X = X, 
   y = y,
@@ -22,15 +18,6 @@ fit <- fit_rkhs_quantile(
   use_gcv = TRUE
 )
 
-# 4. Results
-cat("\n--- Results ---\n")
-cat("Kernel:           ", fit$kernel, "\n")
-cat("Length scale:     ", fit$length_scale, "\n")
-cat("Lambda (GCV):     ", format(fit$lambda, scientific = TRUE), "\n")
-cat("Iterations:       ", fit$iterations, "\n")
-cat("Training RMSE:    ", round(sqrt(mean((y - fit$fitted)^2)), 4), "\n")
-
-# 5. Prediction on new points
 X_new <- matrix(seq(0, 1, length.out = 200), ncol = 1)
 preds <- fit$predictor(X_new)
 

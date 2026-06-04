@@ -8,9 +8,6 @@ sourceCpp("rkhs_quan.cpp")
 # =============================================
 # Optimized RKHS Quantile Regression
 # =============================================
-# =============================================
-# RKHS Quantile Regression with Spherical Kernel
-# =============================================
 fit_rkhs_quantile <- function(X, y,
                               tau = 0.5,
                               lambda = NULL,

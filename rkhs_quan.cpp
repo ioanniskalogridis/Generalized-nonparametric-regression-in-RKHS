@@ -98,13 +98,20 @@ mat spherical_kernel(const mat& X, const mat& Y) {
 // Smoothed quantile psi
 // ============================================================
 vec smoothed_quantile_psi(const vec& r, double tau, double eps = 1e-4) {
-    vec psi = -tau * ones(r.n_elem);
-    psi.elem(find(r > 0)) += 1.0;
+    vec psi(r.n_elem);
 
-    uvec near_zero = find(abs(r) < eps);
-    if (!near_zero.is_empty()) {
-        psi(near_zero) = (r(near_zero) / (2.0 * eps)) + (0.5 - tau);
+    for (uword i = 0; i < r.n_elem; ++i) {
+        double ri = r[i];
+
+        if (ri < -eps) {
+            psi[i] = -tau;
+        } else if (ri > eps) {
+            psi[i] = 1.0 - tau;
+        } else {
+            psi[i] = (ri / (2.0 * eps)) + (0.5 - tau);
+        }
     }
+
     return psi;
 }
 
