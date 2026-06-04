@@ -1,37 +1,117 @@
-nsim <- 200
+library(Rcpp)
+library(RcppArmadillo)
 
-n <- 200
-X <- matrix(runif(n), nrow = n, ncol = 1)
+sourceCpp("rkhs_quan.cpp")
 
-f_true <- function(x) sin(2 * pi * x) + 0.5 * x^2
-y <- f_true(X) + rt(n, df = 1) #+rnorm(n, sd = 0.6)
+set.seed(123)
 
+# ============================================================
+# SETTINGS
+# ============================================================
+B <- 200
+n <- 300
+B_show <- 20
 
+mse_ls <- numeric(B)
+mse_q  <- numeric(B)
 
-fit <- fit_rkhs_quantile(
-  X = X, 
-  y = y,
-  tau = 0.5,
-  kernel = "gaussian",
-  m = 2.5,
-  length_scale = 1,
-  use_gcv = TRUE
-)
+pred_ls_all <- vector("list", B)
+pred_q_all  <- vector("list", B)
 
-X_new <- matrix(seq(0, 1, length.out = 200), ncol = 1)
-preds <- fit$predictor(X_new)
+# ============================================================
+# SIMULATION
+# ============================================================
+for (b in 1:B) {
+  
+  # ---------------- data ----------------
+  X <- matrix(runif(n, -1, 1), n, 1)
+  
+  f0 <- sin(2*pi*X[,1]) + 0.3*X[,1]^2
+  
+  y <- f0 + 0.5 * rnorm(n)
+  
+  # ============================================================
+  # LS: EVERYTHING INTERNAL (X, y ONLY)
+  # ============================================================
+  fit_ls <- fit_rkhs(
+    X = X,
+    y = y,
+    loss = "ls",
+    kernel = "matern",
+    cv = TRUE
+  )
+  
+  f_ls <- as.numeric(fit_ls$fitted)
+  
+  # ============================================================
+  # QUANTILE: EVERYTHING INTERNAL (X, y ONLY)
+  # ============================================================
+  fit_q <- fit_rkhs(
+    X = X,
+    y = y,
+    loss = "quantile",
+    tau = 0.5,
+    kernel = "matern",
+    cv = TRUE
+  )
+  
+  f_q <- as.numeric(fit_q$fitted)
+  
+  # ============================================================
+  # TRUE MSE (NO CV CONTAMINATION)
+  # ============================================================
+  mse_ls[b] <- mean((f_ls - f0)^2)
+  mse_q[b]  <- mean((f_q  - f0)^2)
+  
+  # store for plotting
+  pred_ls_all[[b]] <- f_ls
+  pred_q_all[[b]]  <- f_q
+}
 
-cat("Prediction successful! Length =", length(preds), "\n")
+# ============================================================
+# RESULTS
+# ============================================================
+cat("\nLS mean:", mean(mse_ls),
+    "median:", median(mse_ls), "\n")
 
-# 6. Plot
-plot(X[,1], y, pch = 16, col = rgb(0,0,0,0.4), ylim = c(-2, 2),
-     main = "RKHS Quantile Regression (τ = 0.5)",
-     xlab = "x", ylab = "y", cex = 0.8)
+cat("Q mean:", mean(mse_q),
+    "median:", median(mse_q), "\n")
 
-lines(X_new[,1], f_true(X_new), col = "black", lwd = 2, lty = 2)   # True function
-lines(X_new[,1], preds, col = "blue", lwd = 2.5)                   # Estimated
+x_plot <- matrix(runif(n, -1, 1), n, 1)
+ord <- order(x_plot[,1])
+x_sorted <- x_plot[ord,1]
 
-legend("topright", 
-       legend = c("Observations", "True function", "Estimated (τ=0.5)"),
-       col = c(rgb(0,0,0,0.4), "black", "blue"), 
-       pch = c(16, NA, NA), lty = c(NA, 2, 1), lwd = c(1,2,2.5))
+f0_plot <- sin(2*pi*x_sorted) + 0.3*x_sorted^2
+
+ylim_range <- range(c(
+  f0_plot,
+  unlist(pred_ls_all[1:B_show]),
+  unlist(pred_q_all[1:B_show])
+))
+
+plot(x_sorted, f0_plot,
+     type = "l",
+     lwd = 3,
+     col = "black",
+     ylim = ylim_range,
+     xlab = "x",
+     ylab = "f(x)",
+     main = "RKHS Simulation (Fully Internal CV)")
+
+for (b in 1:B_show) {
+  
+  lines(x_sorted,
+        pred_ls_all[[b]][ord],
+        col = rgb(0, 0, 1, 0.25),
+        lwd = 1)
+  
+  lines(x_sorted,
+        pred_q_all[[b]][ord],
+        col = rgb(1, 0, 0, 0.25),
+        lwd = 1)
+}
+
+legend("topright",
+       legend = c("True f0", "LS", "Quantile"),
+       col = c("black", "blue", "red"),
+       lwd = c(3,1,1))
