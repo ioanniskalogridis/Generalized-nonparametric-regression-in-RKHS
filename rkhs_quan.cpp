@@ -219,6 +219,28 @@ List rkhs_quantile_irls(const mat& K,
     );
 }
 
+
+// [[Rcpp::export]] 
+double rkhs_quantile_gcv(const mat& K, 
+    const vec& y, 
+    const vec& alpha, 
+    const vec& w, 
+    double lambda) { 
+        uword n = K.n_rows; 
+        vec f = K * alpha; 
+        vec r = y - f; 
+        mat W = diagmat(w); 
+        mat A = K * W * K + lambda * eye(n, n); 
+        A.diag() += 1e-10; 
+        mat H = K * solve(A, K * W); 
+        vec h = H.diag(); 
+        double out = 0.0; 
+        for (uword i = 0; i < n; i++) { 
+            double d = 1.0 - h(i); out += w(i) * r(i) * r(i) / (d * d + 1e-12); 
+        } 
+        return out / n; 
+    }
+
 // ============================================================
 // Prediction
 // ============================================================

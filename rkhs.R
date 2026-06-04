@@ -14,7 +14,7 @@ fit_rkhs <- function(X, y,
                       tau = 0.5,
                       s = 2.5,
                       ls = 1.0,
-                      lambda_grid = 10^seq(-6, -1, length.out = 30),
+                      lambda_grid = 10^seq(-08, -1, length.out = 50),
                       cv = TRUE,
                       verbose = FALSE) {
 
@@ -52,12 +52,13 @@ fit_rkhs <- function(X, y,
 
       K <- kernel_mat(X, X, kernel, ls, s)
       fit <- rkhs_quantile_irls(K, y, tau = tau, lambda = lam)
+      alpha <- fit$alpha
+      w <- fit$weights
 
-      # simple surrogate CV (kept consistent with your current design)
-      fhat <- fit$fitted
-      scores[i] <- mean(abs(y - fhat))
+      scores[i] <- rkhs_quantile_gcv(K,y, alpha, w, lam)
     }
   }
+  # print(scores)
 
   lambda <- lambda_grid[which.min(scores)]
 
