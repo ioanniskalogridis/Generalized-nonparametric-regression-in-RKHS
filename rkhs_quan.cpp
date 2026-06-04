@@ -153,7 +153,7 @@ double rkhs_ls_ocv(const mat& K, const vec& y, double lambda) {
     mat H = K * solve(A, eye(n,n));
     vec h = H.diag();
 
-    return mean(square(r / (1.0 - h + 1e-12)));
+    return mean(square(r / (1.0 - h )));
 }
 
 // ============================================================
@@ -194,7 +194,7 @@ List rkhs_quantile_irls(const mat& K,
 
         mat W = diagmat(w);
 
-        mat A = K * W * K + lambda * eye(n,n);
+        mat A = K * W * K + n*lambda * eye(n,n);
         A.diag() += 1e-10;
 
         vec rhs = K * (w % y);
@@ -230,13 +230,13 @@ double rkhs_quantile_gcv(const mat& K,
         vec f = K * alpha; 
         vec r = y - f; 
         mat W = diagmat(w); 
-        mat A = K * W * K + lambda * eye(n, n); 
+        mat A = K * W * K + n*lambda * eye(n, n); 
         A.diag() += 1e-10; 
         mat H = K * solve(A, K * W); 
         vec h = H.diag(); 
         double out = 0.0; 
         for (uword i = 0; i < n; i++) { 
-            double d = 1.0 - h(i); out += w(i) * r(i) * r(i) / (d * d + 1e-12); 
+            double d = 1.0 - h(i); out += w(i) * r(i) * r(i) / (d * d ); 
         } 
         return out / n; 
     }
