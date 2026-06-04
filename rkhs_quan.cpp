@@ -21,56 +21,85 @@ static mat dist_matrix(const mat& X, const mat& Y) {
 }
 
 // ============================================================
-// Kernels
+// Gaussian kernel
 // ============================================================
 mat gaussian_kernel(const mat& X, const mat& Y, double ls = 1.0) {
     mat D = dist_matrix(X, Y) / ls;
     return exp(-0.5 * square(D));
 }
 
+// ============================================================
+// Matérn (Sobolev) kernel (1D interpretation only)
+// s = smoothness parameter (do NOT adjust for dimension here)
+// ============================================================
 mat matern_kernel(const mat& X, const mat& Y,
                   double s = 2.5, double ls = 1.0) {
 
-    uword d = X.n_cols;
-    double nu = s - 0.5 * d;
-
-    if (nu <= 0)
-        stop("Sobolev order s must satisfy s > d/2");
-
     mat D = dist_matrix(X, Y) / ls;
 
-    if (std::abs(nu - 0.5) < 1e-8)
+    if (std::abs(s - 0.5) < 1e-8)
         return exp(-D);
 
-    if (std::abs(nu - 1.5) < 1e-8) {
+    if (std::abs(s - 1.5) < 1e-8) {
         mat T = sqrt(3.0) * D;
         return (1.0 + T) % exp(-T);
     }
 
-    if (std::abs(nu - 2.5) < 1e-8) {
+    if (std::abs(s - 2.5) < 1e-8) {
         mat T = sqrt(5.0) * D;
         return (1.0 + T + (T % T)/3.0) % exp(-T);
     }
 
+    // fallback smooth exponential
     return exp(-D);
 }
 
-mat spherical_kernel(const mat& X, const mat& Y) {
-    uword n = X.n_rows, m = Y.n_rows;
-    mat K(n,m);
+// ============================================================
+// Tensor Sobolev kernel (arbitrary dimension d)
+// K(x,y) = Π_j K_s(x_j, y_j)
+// ============================================================
+// [[Rcpp::export]]
+arma::mat tensor_sobolev_kernel(const arma::mat& X,
+                                 const arma::mat& Y,
+                                 double ls,
+                                 double s) {
 
-    for (uword i=0;i<n;i++)
-        for (uword j=0;j<m;j++)
-            K(i,j) = 1.0 / std::max(2.0 - dot(X.row(i), Y.row(j)), 1e-8);
+    uword n = X.n_rows;
+    uword m = Y.n_rows;
+    uword d = X.n_cols;
+
+    arma::mat K(n, m, arma::fill::ones);
+
+    for (uword j = 0; j < d; ++j) {
+
+        arma::mat Xj = X.col(j);
+        arma::mat Yj = Y.col(j);
+
+        arma::mat D = dist_matrix(Xj, Yj) / ls;
+
+        arma::mat Kj;
+
+        if (std::abs(s - 0.5) < 1e-8)
+            Kj = exp(-D);
+        else if (std::abs(s - 1.5) < 1e-8)
+            Kj = (1.0 + sqrt(3.0)*D) % exp(-sqrt(3.0)*D);
+        else if (std::abs(s - 2.5) < 1e-8)
+            Kj = (1.0 + sqrt(5.0)*D + (5.0*D%D)/3.0) % exp(-sqrt(5.0)*D);
+        else
+            Kj = exp(-D); // generic fallback
+
+        K %= Kj;
+    }
 
     return K;
 }
 
 // ============================================================
-// Kernel dispatcher
+// Dispatcher
 // ============================================================
 // [[Rcpp::export]]
-mat kernel_mat(const mat& X, const mat& Y,
+mat kernel_mat(const mat& X,
+               const mat& Y,
                std::string type,
                double ls = 1.0,
                double s = 2.5) {
@@ -81,16 +110,20 @@ mat kernel_mat(const mat& X, const mat& Y,
     if (type == "matern")
         return matern_kernel(X, Y, s, ls);
 
-    return spherical_kernel(X, Y);
+    if (type == "tensor")
+        return tensor_sobolev_kernel(X, Y, ls, s);
+
+    stop("Unknown kernel type");
 }
 
 // ============================================================
-// LS
+// Ridge / LS
 // ============================================================
 // [[Rcpp::export]]
 List rkhs_ls(const mat& K, const vec& y, double lambda) {
 
     uword n = K.n_rows;
+
     mat A = K + n * lambda * eye(n,n);
     A.diag() += 1e-10;
 
@@ -103,7 +136,7 @@ List rkhs_ls(const mat& K, const vec& y, double lambda) {
 }
 
 // ============================================================
-// LS OCV
+// Leave-one-out CV (LS)
 // ============================================================
 // [[Rcpp::export]]
 double rkhs_ls_ocv(const mat& K, const vec& y, double lambda) {
@@ -124,7 +157,7 @@ double rkhs_ls_ocv(const mat& K, const vec& y, double lambda) {
 }
 
 // ============================================================
-// Nychka-style quantile smoothing IRLS (CLEAN VERSION)
+// Nychka-style quantile IRLS
 // ============================================================
 // [[Rcpp::export]]
 List rkhs_quantile_irls(const mat& K,
@@ -132,58 +165,44 @@ List rkhs_quantile_irls(const mat& K,
                         double tau = 0.5,
                         double lambda = 1e-4,
                         double eps = 1e-4,
-                        int max_iter = 500,
+                        int max_iter = 100,
                         double tol = 1e-6) {
 
     uword n = K.n_rows;
 
     vec alpha(n, fill::zeros);
-
-    vec w(n);
-    vec f, r;
-
-    int it = 0;
+    vec w(n, fill::ones);
 
     for (int k = 0; k < max_iter; k++) {
 
-        it = k + 1;
+        vec f = K * alpha;
+        vec r = y - f;
 
-        f = K * alpha;
-        r = y - f;
-
-        // ========================================================
-        // NYCHKA QUADRATIC SMOOTHING (THIS IS THE KEY FIX)
-        // ========================================================
+        // smoothed quantile weights (Nychka quadratic approximation)
         for (uword i = 0; i < n; i++) {
-
-            if (r(i) > eps) {
+            if (r(i) > eps)
                 w(i) = 0.0;
-            }
-            else if (r(i) >= 0.0) {
+            else if (r(i) >= 0)
                 w(i) = 2.0 * tau / eps;
-            }
-            else if (r(i) > -eps) {
+            else if (r(i) > -eps)
                 w(i) = 2.0 * (1.0 - tau) / eps;
-            }
-            else {
+            else
                 w(i) = 0.0;
-            }
         }
 
-        // numerical stability
         w += 1e-8;
 
         mat W = diagmat(w);
 
-        mat A = K * W * K + lambda * eye(n, n);
+        mat A = K * W * K + lambda * eye(n,n);
         A.diag() += 1e-10;
 
         vec rhs = K * (w % y);
 
         vec alpha_new;
 
-        bool ok = solve(alpha_new, A, rhs);
-        if (!ok) break;
+        if (!solve(alpha_new, A, rhs))
+            break;
 
         if (norm(alpha_new - alpha, 2) < tol) {
             alpha = alpha_new;
@@ -196,41 +215,8 @@ List rkhs_quantile_irls(const mat& K,
     return List::create(
         Named("alpha") = alpha,
         Named("fitted") = K * alpha,
-        Named("weights") = w,
-        Named("iterations") = it
+        Named("weights") = w
     );
-}
-
-// ============================================================
-// Quantile GCV (unchanged, still valid for your surrogate)
-// ============================================================
-// [[Rcpp::export]]
-double rkhs_quantile_gcv(const mat& K,
-                          const vec& y,
-                          const vec& alpha,
-                          const vec& w,
-                          double lambda) {
-
-    uword n = K.n_rows;
-
-    vec f = K * alpha;
-    vec r = y - f;
-
-    mat W = diagmat(w);
-    mat A = K * W * K + lambda * eye(n, n);
-    A.diag() += 1e-10;
-
-    mat H = K * solve(A, K * W);
-    vec h = H.diag();
-
-    double out = 0.0;
-
-    for (uword i = 0; i < n; i++) {
-        double d = 1.0 - h(i);
-        out += w(i) * r(i) * r(i) / (d * d + 1e-12);
-    }
-
-    return out / n;
 }
 
 // ============================================================
