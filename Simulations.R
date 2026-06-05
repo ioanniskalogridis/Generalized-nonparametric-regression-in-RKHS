@@ -46,7 +46,7 @@ generate_f0_2d <- function(beta, K = 25, p = 1.2) {
 # SIMULATION SETTINGS
 # ============================================================
 
-B <- 5
+B <- 30
 n <- 100
 beta_levels <- c(0.5, 0.75, 1.0)
 error_types <- c("gaussian", "t2")
@@ -163,13 +163,8 @@ for (d in c(1, 2)) {
   }
 }
 
-# ============================================================
-# BUILD CLEAN DATAFRAME (DESTROY rownames PROBLEM)
-# ============================================================
-
 df <- do.call(rbind, lapply(results, as.data.frame))
 
-# CRITICAL FIX: remove rownames completely
 rownames(df) <- NULL
 
 df <- df %>%
@@ -179,10 +174,6 @@ df <- df %>%
     error = ifelse(error == "gaussian", "Gaussian", "t2")
   ) %>%
   arrange(d, error, beta)
-
-# ============================================================
-# REMOVE ANY POSSIBLE INDEX COLUMN (SAFE GUARD)
-# ============================================================
 
 df <- df %>%
   select(
@@ -197,9 +188,7 @@ df <- df %>%
   mutate(mse_ls_mean = 10*mse_ls_mean, mse_ls_sd = 10* mse_ls_sd,
          mse_q_mean = 10*mse_q_mean, mse_q_sd = 10*mse_q_sd)
 
-# ============================================================
-# LATEX TABLE (CLEAN)
-# ============================================================
+# Export table to latex
 
 latex_out <- kable(
   df,
@@ -228,6 +217,7 @@ latex_out <- kable(
 
 cat(latex_out)
 
+# Plotting (Figures 1 and 2 in the paper)
 
 plot(obj$Xg, obj$f0, type = "l", lwd = 2, col = "black",
      ylab = "f(x)", xlab = "x")
