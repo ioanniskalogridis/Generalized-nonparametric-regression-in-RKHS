@@ -1,3 +1,11 @@
+library(Rcpp)
+library(RcppArmadillo)
+library(dplyr)
+library(knitr)
+library(kableExtra)
+
+sourceCpp("rkhs_quan.cpp")
+
 fit_rkhs <- function(X, y,
                      loss = c("ls", "quantile"),
                      kernel = c("gaussian", "matern", "tensor"),
@@ -15,19 +23,9 @@ fit_rkhs <- function(X, y,
   y <- as.numeric(y)
   n <- nrow(X)
   
-  # ============================================================
-  # KERNEL COMPUTED ONLY ONCE (Biggest single speedup)
-  # ============================================================
   K <- kernel_mat(X, X, kernel, ls, s)
-  
-  # ============================================================
-  # CV SCORE STORAGE
-  # ============================================================
   scores <- numeric(length(lambda_grid))
   
-  # ============================================================
-  # MODEL SELECTION LOOP
-  # ============================================================
   for (i in seq_along(lambda_grid)) {
     lam <- lambda_grid[i]
     
@@ -47,9 +45,6 @@ fit_rkhs <- function(X, y,
     cat("Selected lambda:", format(lambda, scientific = TRUE), "\n")
   }
   
-  # ============================================================
-  # FINAL FIT
-  # ============================================================
   if (loss == "ls") {
     fit <- rkhs_ls(K, y, lambda)
     result <- list(
@@ -78,9 +73,6 @@ fit_rkhs <- function(X, y,
     )
   }
   
-  # ============================================================
-  # Fast Predictor (cached training data)
-  # ============================================================
   result$predictor <- function(X_new) {
     X_new <- as.matrix(X_new)
     Knew <- kernel_mat(result$X_train, X_new, kernel, result$ls, result$s)
@@ -90,7 +82,6 @@ fit_rkhs <- function(X, y,
   result
 }
 
-# Convenience alias
 predict_rkhs <- function(fit, X_train, X_new) {
   fit$predictor(X_new)
 }

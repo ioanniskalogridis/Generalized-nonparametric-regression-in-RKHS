@@ -108,13 +108,13 @@ for (d in c(1, 2)) {
         fit_ls <- fit_rkhs(
           X, y, loss = "ls",
           kernel = if(d==1) "matern" else "tensor",
-          s = 2.5, ls = 0.8
+          s = 2.5, ls = 1
         )
         
         fit_q <- fit_rkhs(
           X, y, loss = "quantile", tau = 0.5,
           kernel = if(d==1) "matern" else "tensor",
-          s = 2.5, ls = 0.8
+          s = 2.5, ls = 1
         )
         
         # ----------------------------
@@ -126,9 +126,8 @@ for (d in c(1, 2)) {
         mse_ls[b] <- mean((f_ls - f0g_fixed)^2)
         mse_q[b]  <- mean((f_q  - f0g_fixed)^2)
         
-        # ============================================================
-        # NEW: STORE FIRST 20 REPS ONLY
-        # ============================================================
+
+        # Store 20 curves fot plotting
         if (b <= store_B) {
           
           key <- paste0("d", d, "_beta", beta, "_", err, "_rep", b)
