@@ -5,7 +5,7 @@ library(RcppArmadillo)
 sourceCpp("rkhs_quan.cpp")
 
 # ============================================================
-# OPTIMIZED RKHS FIT WRAPPER
+# FINAL CLEAN RKHS WRAPPER
 # ============================================================
 fit_rkhs <- function(X, y,
                      loss = c("ls", "quantile"),
@@ -13,37 +13,29 @@ fit_rkhs <- function(X, y,
                      tau = 0.5,
                      s = 2.5,
                      ls = 1.0,
-                     lambda_grid = 10^seq(-7, -1, length.out = 30),  # reduced default
+                     lambda_grid = 10^seq(-7, -1, length.out = 30),
                      cv = TRUE,
                      verbose = FALSE) {
   
   loss <- match.arg(loss)
   kernel <- match.arg(kernel)
   
-  X <- as.matrix(X)
+  X_train <- as.matrix(X)
   y <- as.numeric(y)
-  n <- nrow(X)
+  n <- nrow(X_train)
   
-  # ============================================================
-  # COMPUTE KERNEL MATRIX ONLY ONCE (Biggest speedup)
-  # ============================================================
-  K <- kernel_mat(X, X, kernel, ls, s)
+  # Kernel once
+  K <- kernel_mat(X_train, X_train, kernel, ls, s)
   
-  # ============================================================
-  # CV SCORE STORAGE
-  # ============================================================
   scores <- numeric(length(lambda_grid))
   
-  # ============================================================
-  # MODEL SELECTION LOOP (now much faster)
-  # ============================================================
   for (i in seq_along(lambda_grid)) {
     lam <- lambda_grid[i]
     
     if (loss == "ls") {
       fit <- rkhs_ls(K, y, lam)
       scores[i] <- rkhs_ls_ocv(K, y, lam)
-    } else {  # quantile
+    } else {
       fit <- rkhs_quantile_irls(K, y, tau = tau, lambda = lam)
       alpha <- as.numeric(fit$alpha)
       w <- as.numeric(fit$weights)
@@ -51,17 +43,10 @@ fit_rkhs <- function(X, y,
     }
   }
   
-  # Select best lambda
-  best_idx <- which.min(scores)
-  lambda <- lambda_grid[best_idx]
+  lambda <- lambda_grid[which.min(scores)]
+  if (verbose) cat("Selected lambda:", format(lambda, scientific = TRUE), "\n")
   
-  if (verbose) {
-    cat("Selected lambda:", format(lambda, scientific = TRUE), "\n")
-  }
-  
-  # ============================================================
-  # FINAL FIT
-  # ============================================================
+  # Final fit
   if (loss == "ls") {
     fit <- rkhs_ls(K, y, lambda)
     result <- list(
@@ -72,7 +57,7 @@ fit_rkhs <- function(X, y,
       loss = "ls",
       s = s,
       ls = ls,
-      X_train = X
+      X_train = X_train
     )
   } else {
     fit <- rkhs_quantile_irls(K, y, tau = tau, lambda = lambda)
@@ -86,23 +71,21 @@ fit_rkhs <- function(X, y,
       tau = tau,
       s = s,
       ls = ls,
-      X_train = X
+      X_train = X_train
     )
   }
   
-  # ============================================================
-  # Predictor (cached X_train)
-  # ============================================================
+  # Predictor
   result$predictor <- function(X_new) {
     X_new <- as.matrix(X_new)
-    Knew <- kernel_mat(result$X_train, X_new, kernel, ls, s)
+    Knew <- kernel_mat(result$X_train, X_new, kernel, result$ls, result$s)
     as.vector(t(Knew) %*% result$alpha)
   }
   
   result
 }
 
-predict_rkhs <- function(fit, X_train, X_new, ...) {
-  Knew <- kernel_mat(X_train, X_new, fit$kernel, ls = fit$ls, s = fit$s)
-  as.vector(t(Knew) %*% fit$alpha)
+# Simple alias
+predict_rkhs <- function(fit, X_new) {
+  fit$predictor(X_new)
 }

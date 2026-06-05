@@ -7,7 +7,7 @@ set.seed(123)
 # ============================================================
 # SETTINGS
 # ============================================================
-B <- 30                    # Start with small B for testing
+B <- 5                   # Start with small B for testing
 n <- 200
 grid_size <- 150
 x_grid <- seq(-1, 1, length.out = grid_size)
