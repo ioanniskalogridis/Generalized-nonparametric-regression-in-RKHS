@@ -218,13 +218,45 @@ cat(latex_out)
 
 # Plotting (Figures 1 and 2 in the paper)
 
-plot(obj$Xg, obj$f0, type = "l", lwd = 2, col = "black",
-     ylab = "f(x)", xlab = "x")
+keys <- names(grid_fits)
+sel <- keys[grepl("d1_beta0.5_gaussian", keys)]
+objs <- grid_fits[sel]
 
-lines(obj$Xg, obj$f_ls, col = "blue", lwd = 2)
-lines(obj$Xg, obj$f_q,  col = "red", lwd = 2)
+obj0 <- objs[[1]]
+
+plot(obj0$Xg, obj0$f0, type = "l",
+     col = "black", lwd = 2,
+     ylim = range(c(obj0$f0, obj0$f_ls, obj0$f_q)),
+     xlab = "x", ylab = "f(x)",
+     main = "d = 1: All sample curves (LS = blue, QR = red)")
+
+
+for (i in seq_along(objs)) {
+  obj <- objs[[i]]
+  
+  lines(obj$Xg, obj$f_ls, col = rgb(0, 0, 1, 0.25))  # LS transparent blue
+  lines(obj$Xg, obj$f_q,  col = rgb(1, 0, 0, 0.25))  # QR transparent red
+}
 
 legend("topright",
        legend = c("Truth", "LS", "QR"),
        col = c("black", "blue", "red"),
        lwd = 2)
+
+# d = 2 
+obj <- grid_fits[["d2_beta0.5_gaussian_rep1"]]
+n = 50 # grid size
+z_ls <- matrix(obj$f_ls, n, n, byrow = FALSE)
+z_q  <- matrix(obj$f_q,  n, n, byrow = FALSE)
+z_0  <- matrix(obj$f0,   n, n, byrow = FALSE)
+
+image(z_ls, col = heat.colors(50),
+      main = "")
+contour(z_ls, add = TRUE)
+
+image(z_q, col = heat.colors(50))
+contour(z_q, add = TRUE)
+
+image(z_0, col = heat.colors(50),
+      main = "")
+contour(z_0, add = TRUE)
