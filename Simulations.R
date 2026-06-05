@@ -104,13 +104,13 @@ for (b in 1:B_show) {
   # LS (blue)
   lines(x_grid,
         pred_ls_all[[b]],
-        col = rgb(0, 0, 1, 0.25),
+        col = "red",
         lwd = 1)
   
   # Quantile (red)
   lines(x_grid,
         pred_q_all[[b]],
-        col = rgb(1, 0, 0, 0.25),
+        col = "blue",
         lwd = 1)
 }
 
@@ -118,4 +118,4 @@ for (b in 1:B_show) {
 legend("topright",
        legend = c("True f0", "LS", "Quantile"),
        col = c("black", "blue", "red"),
-       lwd = c(3, 1, 1))
+       lwd = c(4, 3, 3))
