@@ -13,7 +13,7 @@ n <- 100
 B_show <- B
 
 grid_size <- 100
-x_grid <- seq(0, 1, length.out = grid_size)
+x_grid <- seq(-1, 1, length.out = grid_size)
 X_grid <- matrix(x_grid, ncol = 1)
 
 mse_ls <- numeric(B)
@@ -28,7 +28,7 @@ pred_q_all  <- vector("list", B)
 for (b in 1:B) {
   print(b)
   # ---------------- training data ----------------
-  X <- matrix(runif(n, 0, 1), n, 1)
+  X <- matrix(runif(n, -1, 1), n, 1)
   
   f0 <- sin(2*pi*X[,1]) + 0.3*X[,1]^2
   # f0 <- 3*X[,1]^2
@@ -105,13 +105,13 @@ for (b in 1:B_show) {
   lines(x_grid,
         pred_ls_all[[b]],
         col = "red",
-        lwd = 1)
+        lwd = 3)
   
   # Quantile (red)
   lines(x_grid,
         pred_q_all[[b]],
         col = "blue",
-        lwd = 1)
+        lwd = 3)
 }
 
 # ---------------- legend ----------------
