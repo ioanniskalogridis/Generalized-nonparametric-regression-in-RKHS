@@ -34,7 +34,7 @@ generate_f0_2d <- function(beta, K = 25, p = 1.2) {
     for (j in 1:K) {
       for (k in 1:K) {
         coeff <- (j * k)^(-(2 * beta + p))
-        out <- out + coeff * cos(2 * pi * j * X[,1]) * cos(2 * pi * k * X[,2])
+        out <- out + coeff * sin(2 * pi * j * X[,1]) *sin(2 * pi * k * X[,2])
       }
     }
     return(out)
@@ -46,7 +46,7 @@ generate_f0_2d <- function(beta, K = 25, p = 1.2) {
 # SIMULATION SETTINGS
 # ============================================================
 
-B <- 30
+B <- 3
 n <- 100
 beta_levels <- c(0.5, 0.75, 1.0)
 error_types <- c("gaussian", "t2")
@@ -260,3 +260,76 @@ contour(z_q, add = TRUE)
 image(z_0, col = heat.colors(50),
       main = "")
 contour(z_0, add = TRUE)
+
+library(ggplot2)
+
+n <- 50
+grid <- expand.grid(
+  x1 = seq(0, 1, length = n),
+  x2 = seq(0, 1, length = n)
+)
+
+df <- data.frame(
+  x1 = grid$x1,
+  x2 = grid$x2,
+  z0 = obj$f0,
+  zls = obj$f_ls,
+  zq  = obj$f_q
+)
+ggplot(df, aes(x1, x2, fill = zls)) +
+  geom_raster(interpolate = TRUE) +
+  scale_fill_viridis_c(option = "C") +
+  coord_fixed() +
+  labs(title = "Least Squares RKHS", x = "x1", y = "x2", fill = "f(x)") +
+  theme_minimal()
+ggplot(df, aes(x1, x2, fill = zq)) +
+  geom_raster(interpolate = TRUE) +
+  scale_fill_viridis_c(option = "C") +
+  coord_fixed() +
+  labs(title = "Quantile RKHS", x = "x1", y = "x2", fill = "f(x)") +
+  theme_minimal()
+ggplot(df, aes(x1, x2, fill = z0)) +
+  geom_raster(interpolate = TRUE) +
+  scale_fill_viridis_c(option = "C") +
+  coord_fixed() +
+  labs(title = "True function", x = "x1", y = "x2", fill = "f(x)") +
+  theme_minimal()
+ggplot(df, aes(x1, x2, fill = zls)) +
+  geom_tile(interpolate = TRUE) +
+  scale_fill_viridis_c(option = "C") +
+  coord_fixed() +
+  labs(title = "LS RKHS", x = "x1", y = "x2", fill = "f(x)") +
+  theme_minimal()
+
+ggplot(df, aes(x1, x2, z = zls)) +
+  geom_contour_filled(bins = 12) +
+  scale_fill_viridis_d(option = "C", guide = "none") +
+  geom_contour(color = "black", alpha = 0.3, bins = 12) +
+  coord_fixed() +
+  labs(title = "LS RKHS", x = "x1", y = "x2") +
+  theme_minimal()
+ggplot(df, aes(x1, x2, z = zq)) +
+  geom_contour_filled(bins = 12) +
+  scale_fill_viridis_d(option = "C", guide = "none") +
+  geom_contour(color = "black", alpha = 0.3, bins = 12) +
+  coord_fixed() +
+  labs(title = "LS RKHS", x = "x1", y = "x2") +
+  theme_minimal()
+ggplot(df, aes(x = x1, y = x2, fill = zls)) +
+  geom_raster(interpolate = TRUE) +
+  scale_fill_viridis_c(option = "C") +
+  coord_fixed() +
+  labs(title = "", x = "x1", y = "x2") +
+  theme_minimal()
+ggplot(df, aes(x = x1, y = x2, fill = zq)) +
+  geom_raster(interpolate = TRUE) +
+  scale_fill_viridis_c(option = "C") +
+  coord_fixed() +
+  labs(title = "", x = "x1", y = "x2") +
+  theme_minimal()
+ggplot(df, aes(x = x1, y = x2, fill = z0)) +
+  geom_raster(interpolate = TRUE) +
+  scale_fill_viridis_c(option = "C") +
+  coord_fixed() +
+  labs(title = "", x = "x1", y = "x2") +
+  theme_minimal()
