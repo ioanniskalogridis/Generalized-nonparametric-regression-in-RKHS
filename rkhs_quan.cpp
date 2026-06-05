@@ -168,7 +168,7 @@ List rkhs_quantile_irls(const mat& K,
                         double tol = 1e-8) {
 
 // ouble eps = 0.1 * arma::stddev(y);
-if (eps < 1e-10) eps = 1e-10;
+// if (eps < 1e-10) eps = 1e-10;
 
 uword n = K.n_rows;
 
@@ -197,7 +197,7 @@ for (int k = 0; k < max_iter; k++) {
             if (r(i) > 0)
                 w(i) = tau/r(i);
             else
-                w(i) = (1.0 - tau) /r(i);
+                w(i) = (tau - 1) /r(i);
         }
     }
     
