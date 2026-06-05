@@ -124,7 +124,7 @@ List rkhs_ls(const mat& K, const vec& y, double lambda) {
 
     uword n = K.n_rows;
 
-    mat A = K + n * lambda * eye(n,n);
+    mat A = K+ n * lambda * eye(n,n);
     A.diag() += 1e-10;
 
     vec alpha = solve(A, y);
@@ -144,7 +144,6 @@ double rkhs_ls_ocv(const mat& K, const vec& y, double lambda) {
     uword n = K.n_rows;
 
     mat A = K + n * lambda * eye(n,n);
-    A.diag() += 1e-10;
 
     vec alpha = solve(A, y);
     vec f = K * alpha;
@@ -164,8 +163,8 @@ List rkhs_quantile_irls(const mat& K,
                         const vec& y,
                         double tau = 0.5,
                         double lambda = 1e-4,
-                        double eps = 1e-4,
-                        int max_iter = 100,
+                        double eps = 1e-02,
+                        int max_iter = 200,
                         double tol = 1e-6) {
 
     uword n = K.n_rows;
@@ -189,14 +188,12 @@ List rkhs_quantile_irls(const mat& K,
             else
                 w(i) = 0.0;
         }
-
-        w += 1e-8;
+        Rcout << sum(w > 0) << std::endl;
 
         mat W = diagmat(w);
 
-        mat A = K * W * K + n*lambda * eye(n,n);
+        mat A = K * W * K + 2*n*lambda *K;
         A.diag() += 1e-10;
-
         vec rhs = K * (w % y);
 
         vec alpha_new;
@@ -230,8 +227,8 @@ double rkhs_quantile_gcv(const mat& K,
         vec f = K * alpha; 
         vec r = y - f; 
         mat W = diagmat(w); 
-        mat A = K * W * K + n*lambda * eye(n, n); 
-        A.diag() += 1e-10; 
+        mat A = K * W * K + 2*n*lambda *K; 
+        A.diag() += 1e-10;
         mat H = K * solve(A, K * W); 
         vec h = H.diag(); 
         double out = 0.0; 
