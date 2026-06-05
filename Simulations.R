@@ -46,7 +46,7 @@ generate_f0_2d <- function(beta, K = 25, p = 1.2) {
 # SIMULATION SETTINGS
 # ============================================================
 
-B <- 1000
+B <- 500
 n <- 200
 beta_levels <- c(0.5, 0.75, 1.0)
 error_types <- c("gaussian", "t2")
