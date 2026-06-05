@@ -12,11 +12,11 @@ using namespace arma;
 static mat dist_matrix(const mat& X, const mat& Y) {
     uword n = X.n_rows, m = Y.n_rows;
     mat D(n, m);
-
-    for (uword i = 0; i < n; ++i)
-        for (uword j = 0; j < m; ++j)
-            D(i,j) = norm(X.row(i) - Y.row(j), 2);
-
+    
+    // Much faster vectorized version
+    for (uword i = 0; i < n; ++i) {
+        D.row(i) = sqrt(sum(pow(X.row(i) - Y.each_row(), 2), 1)).t();
+    }
     return D;
 }
 
@@ -32,26 +32,20 @@ mat gaussian_kernel(const mat& X, const mat& Y, double ls = 1.0) {
 // Matérn (Sobolev) kernel (1D interpretation only)
 // s = smoothness parameter (do NOT adjust for dimension here)
 // ============================================================
-mat matern_kernel(const mat& X, const mat& Y,
-                  double s = 2.5, double ls = 1.0) {
-
+mat matern_kernel(const mat& X, const mat& Y, double s = 2.5, double ls = 1.0) {
     mat D = dist_matrix(X, Y) / ls;
-
-    if (std::abs(s - 0.5) < 1e-8)
-        return exp(-D);
-
-    if (std::abs(s - 1.5) < 1e-8) {
-        mat T = sqrt(3.0) * D;
-        return (1.0 + T) % exp(-T);
-    }
-
+    
     if (std::abs(s - 2.5) < 1e-8) {
         mat T = sqrt(5.0) * D;
         return (1.0 + T + (T % T)/3.0) % exp(-T);
     }
-
-    // fallback smooth exponential
-    return exp(-D);
+    if (std::abs(s - 1.5) < 1e-8) {
+        mat T = sqrt(3.0) * D;
+        return (1.0 + T) % exp(-T);
+    }
+    if (std::abs(s - 0.5) < 1e-8) return exp(-D);
+    
+    return exp(-D); // fallback
 }
 
 // ============================================================
@@ -59,61 +53,27 @@ mat matern_kernel(const mat& X, const mat& Y,
 // K(x,y) = Π_j K_s(x_j, y_j)
 // ============================================================
 // [[Rcpp::export]]
-arma::mat tensor_sobolev_kernel(const arma::mat& X,
-                                 const arma::mat& Y,
-                                 double ls,
-                                 double s) {
-
-    uword n = X.n_rows;
-    uword m = Y.n_rows;
+mat tensor_sobolev_kernel(const mat& X, const mat& Y, double ls, double s) {
     uword d = X.n_cols;
-
-    arma::mat K(n, m, arma::fill::ones);
-
+    mat K(X.n_rows, Y.n_rows, fill::ones);
+    
     for (uword j = 0; j < d; ++j) {
-
-        arma::mat Xj = X.col(j);
-        arma::mat Yj = Y.col(j);
-
-        arma::mat D = dist_matrix(Xj, Yj) / ls;
-
-        arma::mat Kj;
-
-        if (std::abs(s - 0.5) < 1e-8)
-            Kj = exp(-D);
-        else if (std::abs(s - 1.5) < 1e-8)
-            Kj = (1.0 + sqrt(3.0)*D) % exp(-sqrt(3.0)*D);
-        else if (std::abs(s - 2.5) < 1e-8)
-            Kj = (1.0 + sqrt(5.0)*D + (5.0*D%D)/3.0) % exp(-sqrt(5.0)*D);
-        else
-            Kj = exp(-D); // generic fallback
-
-        K %= Kj;
+        mat Xj = X.col(j);
+        mat Yj = Y.col(j);
+        mat Kj = matern_kernel(Xj, Yj, s, ls);   // reuse fast matern
+        K = K % Kj;
     }
-
     return K;
 }
-
 // ============================================================
 // Dispatcher
 // ============================================================
 // [[Rcpp::export]]
-mat kernel_mat(const mat& X,
-               const mat& Y,
-               std::string type,
-               double ls = 1.0,
-               double s = 2.5) {
-
-    if (type == "gaussian")
-        return gaussian_kernel(X, Y, ls);
-
-    if (type == "matern")
-        return matern_kernel(X, Y, s, ls);
-
-    if (type == "tensor")
-        return tensor_sobolev_kernel(X, Y, ls, s);
-
-    stop("Unknown kernel type");
+mat kernel_mat(const mat& X, const mat& Y, std::string type, double ls = 1.0, double s = 2.5) {
+    if (type == "gaussian") return gaussian_kernel(X, Y, ls);
+    if (type == "matern")   return matern_kernel(X, Y, s, ls);
+    if (type == "tensor")   return tensor_sobolev_kernel(X, Y, ls, s);
+    stop("Unknown kernel");
 }
 
 // ============================================================
