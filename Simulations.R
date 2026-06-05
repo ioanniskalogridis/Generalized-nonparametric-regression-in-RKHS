@@ -13,7 +13,7 @@ n <- 100
 B_show <- B
 
 grid_size <- 100
-x_grid <- seq(-1, 1, length.out = grid_size)
+x_grid <- seq(0, 1, length.out = grid_size)
 X_grid <- matrix(x_grid, ncol = 1)
 
 mse_ls <- numeric(B)
@@ -31,7 +31,8 @@ for (b in 1:B) {
   X <- matrix(runif(n, -1, 1), n, 1)
   
   f0 <- sin(2*pi*X[,1]) + 0.3*X[,1]^2
-  y  <- f0 + 1 * rnorm(n)
+  # f0 <- 3*X[,1]^2
+  y  <- f0 + 0.1 * rnorm(n)
   
   # ============================================================
   # FIT LS (internal CV)
@@ -43,7 +44,11 @@ for (b in 1:B) {
   # ============================================================
   # FIT QUANTILE (internal CV)
   # ============================================================
-  fit_q <- fit_rkhs(X, y, loss = "quantile", kernel = "matern", tau = 0.5)
+  fit_q <- fit_rkhs(X, y, loss = "quantile", kernel = "matern",
+                    tau = 0.5, verbose = FALSE)
+  # fit_q$lambda; sum(fit_q$weights!= 0)
+  # plot(X[,1], fit_q$fitted)
+  # curve(sin(2*pi*x) + 0.3*x^2, add = TRUE)
   
   f_q_grid <- predict_rkhs(fit_q, X, X_grid)
   
@@ -74,6 +79,7 @@ cat("Q mean:", mean(mse_q),
 
 # true function on grid
 f0_grid <- sin(2*pi*x_grid) + 0.3*x_grid^2
+# f0_grid <- 3*x_grid^2
 
 # ---------------- set plotting range ----------------
 ylim_range <- range(c(

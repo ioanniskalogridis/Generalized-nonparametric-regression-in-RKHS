@@ -14,7 +14,7 @@ fit_rkhs <- function(X, y,
                       tau = 0.5,
                       s = 2.5,
                       ls = 1.0,
-                      lambda_grid = 10^seq(-08, -1, length.out = 50),
+                      lambda_grid = 10^seq(-07, -1, length.out = 50),
                       cv = TRUE,
                       verbose = FALSE) {
 
@@ -87,7 +87,7 @@ fit_rkhs <- function(X, y,
 
   fit <- rkhs_quantile_irls(K, y, tau = tau, lambda = lambda)
 
-  list(
+  return(list(
     alpha = fit$alpha,
     fitted = fit$fitted,
     weights = fit$weights,
@@ -96,7 +96,7 @@ fit_rkhs <- function(X, y,
     loss = "quantile",
     tau = tau,
     s = s
-  )
+  ))
 }
 
 predict_rkhs <- function(fit, X_train, X_new,

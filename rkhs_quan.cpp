@@ -124,8 +124,8 @@ List rkhs_ls(const mat& K, const vec& y, double lambda) {
 
     uword n = K.n_rows;
 
-    mat A = K+ n * lambda * eye(n,n);
-    A.diag() += 1e-10;
+    mat A = K + n * lambda * eye(n,n);
+    // A.diag() += 1e-12;
 
     vec alpha = solve(A, y);
 
@@ -163,38 +163,53 @@ List rkhs_quantile_irls(const mat& K,
                         const vec& y,
                         double tau = 0.5,
                         double lambda = 1e-4,
+                        int max_iter = 100,
                         double eps = 1e-02,
-                        int max_iter = 200,
-                        double tol = 1e-6) {
+                        double tol = 1e-8) {
 
-    uword n = K.n_rows;
+// ouble eps = 0.1 * arma::stddev(y);
+if (eps < 1e-10) eps = 1e-10;
 
-    vec alpha(n, fill::zeros);
-    vec w(n, fill::ones);
+uword n = K.n_rows;
 
-    for (int k = 0; k < max_iter; k++) {
+vec alpha(n, fill::zeros);
+vec w(n, fill::ones);
 
-        vec f = K * alpha;
-        vec r = y - f;
+for (int k = 0; k < max_iter; k++) {
 
-        // smoothed quantile weights (Nychka quadratic approximation)
-        for (uword i = 0; i < n; i++) {
-            if (r(i) > eps)
-                w(i) = 0.0;
-            else if (r(i) >= 0)
-                w(i) = 2.0 * tau / eps;
-            else if (r(i) > -eps)
-                w(i) = 2.0 * (1.0 - tau) / eps;
+    vec f = K * alpha;
+    vec r = y - f;
+
+    for (uword i = 0; i < n; i++) {
+
+        // inside quadratic band (Huberisation)
+        if (std::abs(r(i)) <= eps) {
+
+            if (r(i) >= 0)
+                w(i) = tau / eps;
             else
-                w(i) = 0.0;
+                w(i) = (1.0 - tau) / eps;
+
+        } 
+        // outside band: true quantile IRLS form (ψ/r)
+        else {
+
+            if (r(i) > 0)
+                w(i) = tau/r(i);
+            else
+                w(i) = (1.0 - tau) /r(i);
         }
-        Rcout << sum(w > 0) << std::endl;
+    }
+    
+        // Rcout << sum(w > 0) << std::endl;
 
         mat W = diagmat(w);
 
-        mat A = K * W * K + 2*n*lambda *K;
-        A.diag() += 1e-10;
-        vec rhs = K * (w % y);
+        mat A = W * K + 2*n*lambda* eye(n,n);
+        //mat A = K*W * K + 2*n*lambda*K;
+        A.diag() += 1e-12;
+        vec rhs = (w % y);
+        //vec rhs = K*(w % y);
 
         vec alpha_new;
 
@@ -227,13 +242,15 @@ double rkhs_quantile_gcv(const mat& K,
         vec f = K * alpha; 
         vec r = y - f; 
         mat W = diagmat(w); 
-        mat A = K * W * K + 2*n*lambda *K; 
-        A.diag() += 1e-10;
-        mat H = K * solve(A, K * W); 
+        mat A = W * K + 2*n*lambda* eye(n,n); 
+        // mat A = K* W * K + 2*n*lambda*K; 
+        A.diag() += 1e-12;
+        mat H = K * solve(A, W); 
+        // mat H = K * solve(A, K*W); 
         vec h = H.diag(); 
         double out = 0.0; 
         for (uword i = 0; i < n; i++) { 
-            double d = 1.0 - h(i); out += w(i) * r(i) * r(i) / (d * d ); 
+            double d = 1.0 - h(i); out += w(i) * r(i) * r(i) / (d * d); 
         } 
         return out / n; 
     }
