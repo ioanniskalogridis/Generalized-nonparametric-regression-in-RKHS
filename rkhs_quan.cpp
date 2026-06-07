@@ -1,37 +1,31 @@
 // [[Rcpp::depends(RcppArmadillo)]]
 #define ARMA_NO_DEBUG
-
 #include <RcppArmadillo.h>
 
 using namespace Rcpp;
 using namespace arma;
 
-// ============================================================
 // Distance
-// ============================================================
 static mat dist_matrix(const mat& X, const mat& Y) {
     uword n = X.n_rows, m = Y.n_rows;
     mat D(n, m);
     
-    // Much faster vectorized version
+    // Faster vectorized version
     for (uword i = 0; i < n; ++i) {
         D.row(i) = sqrt(sum(pow(X.row(i) - Y.each_row(), 2), 1)).t();
     }
     return D;
 }
 
-// ============================================================
 // Gaussian kernel
-// ============================================================
 mat gaussian_kernel(const mat& X, const mat& Y, double ls = 1.0) {
     mat D = dist_matrix(X, Y) / ls;
     return exp(-0.5 * square(D));
 }
 
-// ============================================================
 // Matérn (Sobolev) kernel (1D interpretation only)
-// s = smoothness parameter (do NOT adjust for dimension here)
-// ============================================================
+// s = smoothness parameter
+
 mat matern_kernel(const mat& X, const mat& Y, double s = 2.5, double ls = 1.0) {
     mat D = dist_matrix(X, Y) / ls;
     
@@ -48,10 +42,9 @@ mat matern_kernel(const mat& X, const mat& Y, double s = 2.5, double ls = 1.0) {
     return exp(-D); // fallback
 }
 
-// ============================================================
 // Tensor Sobolev kernel (arbitrary dimension d)
-// K(x,y) = Π_j K_s(x_j, y_j)
-// ============================================================
+// K(x,y) = Π_j K_s(x_j, y_j) - product kernel
+
 // [[Rcpp::export]]
 mat tensor_sobolev_kernel(const mat& X, const mat& Y, double ls, double s) {
     uword d = X.n_cols;
@@ -65,9 +58,8 @@ mat tensor_sobolev_kernel(const mat& X, const mat& Y, double ls, double s) {
     }
     return K;
 }
-// ============================================================
 // Dispatcher
-// ============================================================
+
 // [[Rcpp::export]]
 mat kernel_mat(const mat& X, const mat& Y, std::string type, double ls = 1.0, double s = 2.5) {
     if (type == "gaussian") return gaussian_kernel(X, Y, ls);
@@ -76,16 +68,15 @@ mat kernel_mat(const mat& X, const mat& Y, std::string type, double ls = 1.0, do
     stop("Unknown kernel");
 }
 
-// ============================================================
-// Ridge / LS
-// ============================================================
+// LS estimator
+
 // [[Rcpp::export]]
 List rkhs_ls(const mat& K, const vec& y, double lambda) {
 
     uword n = K.n_rows;
 
     mat A = K + n * lambda * eye(n,n);
-    // A.diag() += 1e-12;
+    // A.diag() += 1e-12; // Just in case, but overall not necessary
 
     vec alpha = solve(A, y);
 
@@ -95,9 +86,8 @@ List rkhs_ls(const mat& K, const vec& y, double lambda) {
     );
 }
 
-// ============================================================
 // Leave-one-out CV (LS)
-// ============================================================
+
 // [[Rcpp::export]]
 double rkhs_ls_ocv(const mat& K, const vec& y, double lambda) {
 
@@ -115,9 +105,8 @@ double rkhs_ls_ocv(const mat& K, const vec& y, double lambda) {
     return mean(square(r / (1.0 - h )));
 }
 
-// ============================================================
-// Nychka-style quantile IRLS
-// ============================================================
+// Quantile IRLS with local quadratic approximation
+
 // [[Rcpp::export]]
 List rkhs_quantile_irls(const mat& K,
                         const vec& y,
@@ -126,9 +115,6 @@ List rkhs_quantile_irls(const mat& K,
                         int max_iter = 100,
                         double eps = 1e-02,
                         double tol = 1e-8) {
-
-// ouble eps = 0.1 * arma::stddev(y);
-// if (eps < 1e-10) eps = 1e-10;
 
 uword n = K.n_rows;
 
@@ -142,7 +128,7 @@ for (int k = 0; k < max_iter; k++) {
 
     for (uword i = 0; i < n; i++) {
 
-        // inside quadratic band (Huberisation)
+        // Huberisation inside quadratic band 
         if (std::abs(r(i)) <= eps) {
 
             if (r(i) >= 0)
@@ -151,7 +137,7 @@ for (int k = 0; k < max_iter; k++) {
                 w(i) = (1.0 - tau) / eps;
 
         } 
-        // outside band: true quantile IRLS form (ψ/r)
+        // Regular IRLS weights outside
         else {
 
             if (r(i) > 0)
@@ -161,12 +147,11 @@ for (int k = 0; k < max_iter; k++) {
         }
     }
     
-        // Rcout << sum(w > 0) << std::endl;
+        // Rcout << sum(w > 0) << std::endl; // just to check
 
         mat W = diagmat(w);
 
         mat A = W * K + 2*n*lambda* eye(n,n);
-        //mat A = K*W * K + 2*n*lambda*K;
         A.diag() += 1e-12;
         vec rhs = (w % y);
         //vec rhs = K*(w % y);
@@ -191,6 +176,7 @@ for (int k = 0; k < max_iter; k++) {
     );
 }
 
+// Quantile robust OCV
 
 // [[Rcpp::export]] 
 double rkhs_quantile_gcv(const mat& K, 
@@ -203,21 +189,19 @@ double rkhs_quantile_gcv(const mat& K,
         vec r = y - f; 
         mat W = diagmat(w); 
         mat A = W * K + 2*n*lambda* eye(n,n); 
-        // mat A = K* W * K + 2*n*lambda*K; 
         A.diag() += 1e-12;
         mat H = K * solve(A, W); 
-        // mat H = K * solve(A, K*W); 
         vec h = H.diag(); 
         double out = 0.0; 
-        for (uword i = 0; i < n; i++) { 
-            double d = 1.0 - h(i); out += w(i) * r(i) * r(i) / (d * d); 
-        } 
-        return out / n; 
+        //for (uword i = 0; i < n; i++) { 
+        //    double d = 1.0 - h(i); out += w(i) * r(i) * r(i) / (d * d); 
+        //} 
+        //return out / n; 
+        return mean(w*square(r / (1.0 - h )));
     }
 
-// ============================================================
 // Prediction
-// ============================================================
+
 // [[Rcpp::export]]
 vec rkhs_predict(const mat& Xtr,
                  const mat& Xte,
