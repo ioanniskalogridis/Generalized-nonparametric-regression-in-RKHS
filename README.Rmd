@@ -3,6 +3,8 @@ title: "Generalized nonparametric regression in reproducing kernel Hilbert space
 output: github_document
 ---
 
+## Download and source the functions
+
 This repository contains fast ```C++``` implementations with an ```R``` interface of the reproducing kernel Hilbert space estimators of Kalogridis (2026).
 
 The computation is done with **Iteratively Reweighted Least-Squares** and the penalty parameter is selected with **robust Generalized Cross Validation**.
@@ -29,12 +31,20 @@ library(fda);library(Rcpp);library(RcppArmadillo)
 
 4. The ```R```-functions will source the ```rkhs_quan.cpp``` file containing the ```C++``` implementations; no ```C``` knowledge is required.
 
+## Example 1: One-dimensional data
+
+
+
+## Example 2: Two-dimensional data
+
+
+
 ## Notes
 
-- Please see the ```R```-functions for complete documentation of the settings/options.
+- See the ```R```-functions for complete documentation of the settings/options.
 - The simulation script reproduces the results from Section 6 in Kalogridis (2026).
 
-Get in contact with me at ioannis.kalogridis@glasgow.ac.uk for any issues, questions or suggestions.
+Contact me at ioannis.kalogridis@glasgow.ac.uk for any issues, questions or suggestions.
 
 ## References
 Kalogridis, I. (2026). Generalized nonparametric regression in reproducing kernel Hilbert spaces: Consistency and rates of convergence, under review.
