@@ -192,12 +192,12 @@ double rkhs_quantile_gcv(const mat& K,
         A.diag() += 1e-12;
         mat H = K * solve(A, W); 
         vec h = H.diag(); 
-        double out = 0.0; 
+        // double out = 0.0; 
         //for (uword i = 0; i < n; i++) { 
         //    double d = 1.0 - h(i); out += w(i) * r(i) * r(i) / (d * d); 
         //} 
         //return out / n; 
-        return mean(w*square(r / (1.0 - h )));
+        return mean(w%square(r / (1.0 - h )));
     }
 
 // Prediction
