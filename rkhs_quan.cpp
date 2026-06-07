@@ -1,6 +1,9 @@
 // [[Rcpp::depends(RcppArmadillo)]]
 #define ARMA_NO_DEBUG
 #include <RcppArmadillo.h>
+#include <boost/math/special_functions/bessel.hpp>
+#include <cmath>
+
 
 using namespace Rcpp;
 using namespace arma;
@@ -26,20 +29,34 @@ mat gaussian_kernel(const mat& X, const mat& Y, double ls = 1.0) {
 // Matérn (Sobolev) kernel (1D interpretation only)
 // s = smoothness parameter
 
-mat matern_kernel(const mat& X, const mat& Y, double s = 2.5, double ls = 1.0) {
+mat matern_kernel(const mat& X,
+                  const mat& Y,
+                  double s = 2.5,
+                  double ls = 1.0) {
+
     mat D = dist_matrix(X, Y) / ls;
-    
-    if (std::abs(s - 2.5) < 1e-8) {
-        mat T = sqrt(5.0) * D;
-        return (1.0 + T + (T % T)/3.0) % exp(-T);
+
+    mat K(D.n_rows, D.n_cols, fill::zeros);
+
+    double nu = s;
+
+    double c1 = std::pow(2.0, 1.0 - nu) / std::tgamma(nu);
+
+    for (uword i = 0; i < D.n_rows; i++) {
+        for (uword j = 0; j < D.n_cols; j++) {
+
+            double r = std::sqrt(2.0 * nu) * D(i,j);
+
+            if (r < 1e-12) {
+                K(i,j) = 1.0;
+            } else {
+                double b = boost::math::cyl_bessel_k(nu, r);
+                K(i,j) = c1 * std::pow(r, nu) * b;
+            }
+        }
     }
-    if (std::abs(s - 1.5) < 1e-8) {
-        mat T = sqrt(3.0) * D;
-        return (1.0 + T) % exp(-T);
-    }
-    if (std::abs(s - 0.5) < 1e-8) return exp(-D);
-    
-    return exp(-D); // fallback
+
+    return K;
 }
 
 // Tensor Sobolev kernel (arbitrary dimension d)
@@ -113,7 +130,7 @@ List rkhs_quantile_irls(const mat& K,
                         double tau = 0.5,
                         double lambda = 1e-4,
                         int max_iter = 100,
-                        double eps = 1e-02,
+                        double eps = 1e-03,
                         double tol = 1e-8) {
 
 uword n = K.n_rows;
@@ -152,7 +169,6 @@ for (int k = 0; k < max_iter; k++) {
         mat W = diagmat(w);
 
         mat A = W * K + 2*n*lambda* eye(n,n);
-        A.diag() += 1e-12;
         vec rhs = (w % y);
         //vec rhs = K*(w % y);
 
@@ -189,7 +205,6 @@ double rkhs_quantile_gcv(const mat& K,
         vec r = y - f; 
         mat W = diagmat(w); 
         mat A = W * K + 2*n*lambda* eye(n,n); 
-        A.diag() += 1e-12;
         mat H = K * solve(A, W); 
         vec h = H.diag(); 
         // double out = 0.0; 

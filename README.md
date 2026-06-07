@@ -28,12 +28,12 @@ getwd()
 source("rkhs.R")    # Quantile and LS estimators
 ```
 
-3.  Be sure to have installed and loaded the `R`-packages `fda`, `Rcpp`
-    and `RcppArmadillo`:
+3.  Be sure to have installed and loaded the `R`-packages `Rcpp` and
+    `RcppArmadillo`:
 
 ``` r
-# install.packages(c("fda", "Rcpp", "RcppArmadillo"))
-library(fda);library(Rcpp);library(RcppArmadillo)
+# install.packages(c("Rcpp", "RcppArmadillo"))
+library(Rcpp); library(RcppArmadillo)
 ```
 
 4.  The `R`-functions will source the `rkhs_quan.cpp` file containing
@@ -42,7 +42,7 @@ library(fda);library(Rcpp);library(RcppArmadillo)
 ## Example 1: One-dimensional data
 
 ``` r
-set.seed(1)
+set.seed(10)
 
 n    <- 200 # 50 for smaller samples
 beta <- 0.75 # one of c(0.5, 0.75, 1.0) 
@@ -110,12 +110,13 @@ ggplot(df, aes(x=t, y=value, color=method, linetype=method)) +
 If the measurement errors follow a light-tailed distribution, the
 estimators perform comparably.
 
-But for heavier tailed errors the situation changes dramatically in
-favour of the robust quantile estimator:
+But for heavy tailed errors the situation changes dramatically in favour
+of the robust quantile estimator:
 
 ``` r
-set.seed(1)
-y <- f0(X) + rt(n, df = 2)
+set.seed(10)
+
+y <- f0(X) + rt(n, df = 1)
 
 fit_ls <- fit_rkhs(
   X, y, loss = "ls",

@@ -42,7 +42,7 @@ generate_f0_2d <- function(beta, K = 25, p = 1.2) {
 # SETTINGS
 # ============================================================
 
-B <- 500
+B <- 300
 n <- 200
 
 beta_levels <- c(0.5, 0.75, 1.0)
@@ -91,9 +91,9 @@ for (beta in beta_levels) {
       f0 <- f_target$f0(X)
       
       eps <- if (err == "gaussian")
-        rnorm(n, sd = 0.5)
+        rnorm(n)
       else
-        rt(n, df = 2) * 0.5
+        rt(n, df = 2)
       
       y <- f0 + eps
       
@@ -161,3 +161,110 @@ for (beta in beta_levels) {
 
 saveRDS(results, "results_d2.rds")
 saveRDS(grid_fits, "gridfits_d2.rds")
+
+# Combine results
+results_d1 <- readRDS("results_d1.rds")
+results_d2 <- readRDS("results_d2.rds")
+
+results <- unname(c(results_d1, results_d2))
+df <- as.data.frame(do.call(rbind, results))
+
+# ============================================================
+# 2. CLEAN + FIX ORDERING (CRITICAL)
+# ============================================================
+
+df <- df %>%
+  mutate(
+    d = as.integer(d),
+    beta = as.numeric(beta),
+    
+    noise = ifelse(error %in% c("gaussian", "Gaussian"), "Gaussian", "$t_2$")
+  ) %>%
+  mutate(
+    noise = factor(noise, levels = c("Gaussian", "$t_2$"))
+  ) %>%
+  arrange(d, beta, noise)
+
+# ============================================================
+# 3. SCALE (optional)
+# ============================================================
+
+df <- df %>%
+  mutate(
+    mse_ls_mean = 10 * mse_ls_mean,
+    mse_ls_sd   = 10 * mse_ls_sd,
+    mse_q_mean  = 10 * mse_q_mean,
+    mse_q_sd    = 10 * mse_q_sd
+  )
+
+# ============================================================
+# 4. MULTIROW STRUCTURE (d and beta)
+# ============================================================
+
+df <- df %>%
+  group_by(d, beta) %>%
+  mutate(beta_n = n()) %>%
+  ungroup() %>%
+  group_by(d) %>%
+  mutate(d_n = n()) %>%
+  ungroup()
+
+df <- df %>%
+  mutate(
+    d_col = ifelse(!duplicated(d),
+                   paste0("\\multirow{", d_n, "}{*}{$d = ", d, "$}"),
+                   ""),
+    
+    beta_col = ifelse(!duplicated(interaction(d, beta)),
+                      paste0("\\multirow{", beta_n, "}{*}{$\\beta = ", sprintf("%.2f", beta), "$}"),
+                      "")
+  )
+
+# ============================================================
+# 5. FINAL TABLE (NO SPACING BUGS)
+# ============================================================
+
+tab <- df %>%
+  select(
+    d_col,
+    beta_col,
+    noise,
+    mse_ls_mean, mse_ls_sd,
+    mse_q_mean, mse_q_sd
+  )
+
+# ============================================================
+# 6. BUILD LATEX TABLE
+# ============================================================
+
+latex_out <- kable(
+  tab,
+  format = "latex",
+  booktabs = TRUE,
+  escape = FALSE,
+  digits = 4,
+  align = c("c","c","c","r","r","r","r"),
+  col.names = c(
+    "$d$",
+    "$\\beta$",
+    "Noise",
+    "LS MSE", "LS SE",
+    "QR MSE", "QR SE"
+  )
+) %>%
+  add_header_above(c(
+    " " = 3,
+    "Least Squares RKHS" = 2,
+    "Quantile RKHS ($\\tau = 0.5$)" = 2
+  )) %>%
+  kable_styling(
+    latex_options = c("hold_position", "scale_down"),
+    full_width = FALSE,
+    font_size = 10
+  )
+
+# ============================================================
+# 7. OUTPUT
+# ============================================================
+
+cat(latex_out)
