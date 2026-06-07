@@ -1,3 +1,5 @@
+setwd("C:/Users/ik77w/OneDrive - University of Glasgow/Documents/GitHub/Generalized-nonparametric-regression-in-RKHS")
+
 library(Rcpp)
 library(RcppArmadillo)
 library(dplyr)

@@ -14,6 +14,20 @@ Here are detailed installation instructions:
 ```{r echo=TRUE, message=FALSE, results = "hide"}
 getwd()
 ```
+2. Load the ```R``` function ```rkhs.R``` (Quantile and Least-squares RKHS estimators).
+
+```{r message = FALSE}
+source("rkhs.R")    # Quantile and LS estimators
+```
+
+3. Be sure to have installed and loaded the ```R```-packages ```fda```, ```Rcpp``` and ```RcppArmadillo```:
+
+```{r, eval = FALSE}
+# install.packages(c("fda", "Rcpp", "RcppArmadillo"))
+library(fda);library(Rcpp);library(RcppArmadillo)
+```
+
+4. The ```R```-functions will source the ```rkhs_quan.cpp``` file containing the ```C++``` implementations; no ```C``` knowledge is required.
 
 ## Notes
 
