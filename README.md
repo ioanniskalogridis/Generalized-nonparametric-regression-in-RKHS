@@ -2,6 +2,8 @@ Generalized nonparametric regression in reproducing kernel Hilbert
 spaces
 ================
 
+## Download and source the functions
+
 This repository contains fast `C++` implementations with an `R`
 interface of the reproducing kernel Hilbert space estimators of
 Kalogridis (2026).
@@ -19,18 +21,149 @@ Here are detailed installation instructions:
 getwd()
 ```
 
+2.  Load the `R` function `rkhs.R` (Quantile and Least-squares RKHS
+    estimators).
+
+``` r
+source("rkhs.R")    # Quantile and LS estimators
+```
+
+3.  Be sure to have installed and loaded the `R`-packages `fda`, `Rcpp`
+    and `RcppArmadillo`:
+
+``` r
+# install.packages(c("fda", "Rcpp", "RcppArmadillo"))
+library(fda);library(Rcpp);library(RcppArmadillo)
+```
+
+4.  The `R`-functions will source the `rkhs_quan.cpp` file containing
+    the `C++` implementations; no `C` knowledge is required.
+
+## Example 1: One-dimensional data
+
+``` r
+set.seed(1)
+
+n    <- 200 # 50 for smaller samples
+beta <- 0.75 # one of c(0.5, 0.75, 1.0) 
+p <- 1.2
+
+K <- 50
+k <- 1:K
+
+coeff <- k^(-(2 * beta + p))
+
+f0 <- function(X) {
+  X <- as.matrix(X)
+  out <- rep(0, nrow(X))
+  for (j in 1:K) {
+    out <- out + coeff[j] * cos(2 * pi * j * X[,1])
+  }
+  return(out)}
+
+X <- matrix(runif(n), n, 1)
+
+# Targets
+Xg <-  seq(0, 1, length = 300)
+f0g <- f0(Xg)
+
+y <- f0(X) + rnorm(n)
+
+fit_ls <- fit_rkhs(
+  X, y, loss = "ls",
+  kernel = "matern")
+
+fit_q <- fit_rkhs(
+  X, y, loss = "quantile", tau = 0.5,
+  kernel = "matern")
+
+f_ls <- predict_rkhs(fit_ls, X, Xg)
+f_q  <- predict_rkhs(fit_q,  X, Xg)
+```
+
+``` r
+library(ggplot2)
+library(viridis)
+
+df <- data.frame(
+  t = rep(Xg, 3),
+  value = c(f0g, f_q, f_ls),
+  method = factor(rep(c("True","LAD", "LS"), each=length(Xg)),
+                  levels = c("True", "LAD", "LS")))
+
+colors <- c("True" = "black", "LAD" = "red", "LS" = "blue")
+line_types <- c("True" = "solid", "LAD" = "longdash", "LS" = "twodash")
+
+ggplot(df, aes(x=t, y=value, color=method, linetype=method)) +
+  geom_line(size=1.2) +
+  theme_minimal(base_size = 16) +
+  labs(x="t", y="", title="") + coord_cartesian(ylim=c(-1.2,1.2)) + 
+  scale_color_manual(values = colors) +
+  scale_linetype_manual(values = line_types) + 
+  theme(legend.title = element_blank(),
+        legend.position = "bottom",
+        plot.title = element_text(hjust = 0.5))
+```
+
+![](README_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
+
+If the measurement errors follow a light-tailed distribution, the
+estimators perform comparably.
+
+But for heavier tailed errors the situation changes dramatically in
+favour of the robust quantile estimator:
+
+``` r
+set.seed(1)
+y <- f0(X) + rt(n, df = 2)
+
+fit_ls <- fit_rkhs(
+  X, y, loss = "ls",
+  kernel = "matern")
+
+fit_q <- fit_rkhs(
+  X, y, loss = "quantile", tau = 0.5,
+  kernel = "matern")
+
+f_ls <- predict_rkhs(fit_ls, X, Xg)
+f_q  <- predict_rkhs(fit_q,  X, Xg)
+
+df <- data.frame(
+  t = rep(Xg, 3),
+  value = c(f0g, f_q, f_ls),
+  method = factor(rep(c("True","LAD", "LS"), each=length(Xg)),
+                  levels = c("True", "LAD", "LS")))
+
+colors <- c("True" = "black", "LAD" = "red", "LS" = "blue")
+line_types <- c("True" = "solid", "LAD" = "longdash", "LS" = "twodash")
+
+ggplot(df, aes(x=t, y=value, color=method, linetype=method)) +
+  geom_line(size=1.2) +
+  theme_minimal(base_size = 16) +
+  labs(x="t", y="", title="") + coord_cartesian(ylim=c(-1.2,1.2)) + 
+  scale_color_manual(values = colors) +
+  scale_linetype_manual(values = line_types) + 
+  theme(legend.title = element_blank(),
+        legend.position = "bottom",
+        plot.title = element_text(hjust = 0.5))
+```
+
+![](README_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+
+## Example 2: Two-dimensional data
+
 ## Notes
 
-- Please see the `R`-functions for complete documentation of the
+- See the `R`-functions for complete documentation of the
   settings/options.
 - The simulation script reproduces the results from Section 6 in
   Kalogridis (2026).
 
-Get in contact with me at <ioannis.kalogridis@glasgow.ac.uk> for any
-issues, questions or suggestions.
+Contact me at <ioannis.kalogridis@glasgow.ac.uk> for any issues,
+questions or suggestions.
 
 ## References
 
-Kalogridis, I. (2026) Generalized nonparametric regression in
+Kalogridis, I. (2026). Generalized nonparametric regression in
 reproducing kernel Hilbert spaces: Consistency and rates of convergence,
 under review.

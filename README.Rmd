@@ -100,10 +100,11 @@ ggplot(df, aes(x=t, y=value, color=method, linetype=method)) +
 
 If the measurement errors follow a light-tailed distribution, the estimators perform comparably. 
 
-But for heavier tailed errors the situation changes dramatically in favour of the robust quantile estimator:
+But for heavy tailed errors the situation changes dramatically in favour of the robust quantile estimator:
 
 ```{r message=FALSE, warning = FALSE, cache=FALSE}
 set.seed(1)
+
 y <- f0(X) + rt(n, df = 2)
 
 fit_ls <- fit_rkhs(
