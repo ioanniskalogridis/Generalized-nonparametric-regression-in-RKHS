@@ -51,29 +51,26 @@ f0 <- function(X) {
   for (j in 1:K) {
     out <- out + coeff[j] * cos(2 * pi * j * X[,1])
   }
-  return(out)
-}
+  return(out)}
 
 X <- matrix(runif(n), n, 1)
-f0 <- f0(X)
 
 # Targets
-Xg <-  matrix(seq(0, 1, length = 300), ncol = 1)
-f0g_fixed <- f0(Xg)
+Xg <-  seq(0, 1, length = 300)
+f0g <- f0(Xg)
 
-
-y <- f0 + 0.5*rnorm(n)
-
+y <- f0(X) + 0.5*rnorm(n)
 
 fit_ls <- fit_rkhs(
   X, y, loss = "ls",
-  kernel = "matern"
-)
+  kernel = "matern")
 
 fit_q <- fit_rkhs(
   X, y, loss = "quantile", tau = 0.5,
-  kernel = "matern"
-)
+  kernel = "matern")
+
+f_ls <- predict_rkhs(fit_ls, X, Xg)
+f_q  <- predict_rkhs(fit_q,  X, Xg)
 
 ```
 
@@ -82,13 +79,13 @@ library(ggplot2)
 library(viridis)
 
 df <- data.frame(
-  t = rep(t_grid, 3),
-  value = c(mu_grid, fit.pensp$mu, fit.lspensp$mu),
-  method = factor(rep(c("True","LAD Pen. Spline","LS Pen. Spline"), each=length(t_grid)),
-  levels = c("True","LAD Pen. Spline","LS Pen. Spline")))
+  t = rep(Xg, 3),
+  value = c(f0g, f_q, f_ls),
+  method = factor(rep(c("True","LAD", "LS"), each=length(Xg)),
+                  levels = c("True", "LAD", "LS")))
 
-colors <- c("True" = "black", "LAD Pen. Spline" = "red", "LS Pen. Spline" = "blue")
-line_types <- c("True" = "solid", "LAD Pen. Spline" = "longdash", "LS Pen. Spline" = "twodash")
+colors <- c("True" = "black", "LAD" = "red", "LS" = "blue")
+line_types <- c("True" = "solid", "LAD" = "longdash", "LS" = "twodash")
 
 ggplot(df, aes(x=t, y=value, color=method, linetype=method)) +
   geom_line(size=1.2) +
@@ -98,9 +95,48 @@ ggplot(df, aes(x=t, y=value, color=method, linetype=method)) +
   scale_linetype_manual(values = line_types) + 
   theme(legend.title = element_blank(),
         legend.position = "bottom",
-        plot.title = element_text(hjust = 0.5)
-  )
+        plot.title = element_text(hjust = 0.5))
 ```
+
+If the measurement errors follow a light-tailed distribution, the estimators perform comparably. 
+
+But for heavier tailed measurement errors the situation changes dramatically in favour of the robust quantile estimator:
+
+```{r message=FALSE, warning = FALSE, cache=FALSE}
+y <- f0(X) + 0.5*rt(n, df = 2)
+
+fit_ls <- fit_rkhs(
+  X, y, loss = "ls",
+  kernel = "matern")
+
+fit_q <- fit_rkhs(
+  X, y, loss = "quantile", tau = 0.5,
+  kernel = "matern")
+
+f_ls <- predict_rkhs(fit_ls, X, Xg)
+f_q  <- predict_rkhs(fit_q,  X, Xg)
+
+df <- data.frame(
+  t = rep(Xg, 3),
+  value = c(f0g, f_q, f_ls),
+  method = factor(rep(c("True","LAD", "LS"), each=length(Xg)),
+                  levels = c("True", "LAD", "LS")))
+
+colors <- c("True" = "black", "LAD" = "red", "LS" = "blue")
+line_types <- c("True" = "solid", "LAD" = "longdash", "LS" = "twodash")
+
+ggplot(df, aes(x=t, y=value, color=method, linetype=method)) +
+  geom_line(size=1.2) +
+  theme_minimal(base_size = 16) +
+  labs(x="t", y="", title="") + coord_cartesian(ylim=c(-1.2,1.2)) + 
+  scale_color_manual(values = colors) +
+  scale_linetype_manual(values = line_types) + 
+  theme(legend.title = element_blank(),
+        legend.position = "bottom",
+        plot.title = element_text(hjust = 0.5))
+
+```
+
 
 
 ## Example 2: Two-dimensional data
