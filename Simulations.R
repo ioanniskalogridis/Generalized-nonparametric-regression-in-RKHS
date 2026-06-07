@@ -126,8 +126,8 @@ for (d in c(1, 2)) {
         mse_ls[b] <- mean((f_ls - f0g_fixed)^2)
         mse_q[b]  <- mean((f_q  - f0g_fixed)^2)
         
-
-        # Store 20 curves fot plotting
+        
+        # Store 20 curves for plotting
         if (b <= store_B) {
           
           key <- paste0("d", d, "_beta", beta, "_", err, "_rep", b)
