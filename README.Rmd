@@ -76,7 +76,6 @@ f_q  <- predict_rkhs(fit_q,  X, Xg)
 
 ```{r message=FALSE, warning=FALSE, fig.width=8, fig.height=5, dpi=120}
 library(ggplot2)
-library(viridis)
 
 df <- data.frame(
   t = rep(Xg, 3),
