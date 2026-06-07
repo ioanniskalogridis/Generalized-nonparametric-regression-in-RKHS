@@ -34,7 +34,7 @@ library(fda);library(Rcpp);library(RcppArmadillo)
 ## Example 1: One-dimensional data
 
 ```{r message=FALSE, warning = FALSE, cache = FALSE}
-set.seed(2)
+set.seed(1)
 
 n    <- 200 # 50 for smaller samples
 beta <- 0.75 # one of c(0.5, 0.75, 1.0) 
@@ -59,7 +59,7 @@ X <- matrix(runif(n), n, 1)
 Xg <-  seq(0, 1, length = 300)
 f0g <- f0(Xg)
 
-y <- f0(X) + 0.5*rnorm(n)
+y <- f0(X) + rnorm(n)
 
 fit_ls <- fit_rkhs(
   X, y, loss = "ls",
@@ -100,10 +100,11 @@ ggplot(df, aes(x=t, y=value, color=method, linetype=method)) +
 
 If the measurement errors follow a light-tailed distribution, the estimators perform comparably. 
 
-But for heavier tailed measurement errors the situation changes dramatically in favour of the robust quantile estimator:
+But for heavier tailed errors the situation changes dramatically in favour of the robust quantile estimator:
 
 ```{r message=FALSE, warning = FALSE, cache=FALSE}
-y <- f0(X) + 0.5*rt(n, df = 2)
+set.seed(1)
+y <- f0(X) + rt(n, df = 2)
 
 fit_ls <- fit_rkhs(
   X, y, loss = "ls",
