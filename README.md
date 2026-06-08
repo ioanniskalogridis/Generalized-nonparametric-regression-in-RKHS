@@ -56,8 +56,8 @@ where $X$ is an $n \times d$ matrix of predictors and
 $y \in \mathbb{R}^n$. `loss` specifies the loss function to be used -
 quantile or ls. `tau` is the quantile to be estimated - only useful for
 the quantile loss. Currently supported kernels are (i) matern (ii)
-Gaussian and (iii) tensor. All kernels can be used for both
-one-dimensional and multi-dimensional predictors, see the paper for
+Gaussian and (iii) tensor (product kernel). All kernels can be used for
+both one-dimensional and multi-dimensional predictors, see the paper for
 detailed explanations.
 
 ## Example 1: One-dimensional data
