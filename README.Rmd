@@ -160,9 +160,9 @@ Let us now consider a more complex example with two dimensional predictors $\mat
 $$
 y_i = \sum_{j=1}^{25} \sum_{k=1}^{25} (j k)^{-(2 \beta + 1.2)} \sin(2 \pi j  x_{i1}) \sin(2 \pi k x_{i2}) + \epsilon_i, \quad (i=1, \ldots, n),
 $$
-for $\beta = 0.75$ and $\epsilon_i$ iid Gaussian or Cauchy.
+for $\beta = 0.75$ and $\epsilon_i$ iid Gaussian or $t_2$.
 
-We compare the true regression surface with the least-squares (LS) and least-absolute-deviation (LAD) tensor RKHS estimators.
+We compare the true regression surface with the least-squares (LS) and least-absolute-deviation (LAD) tensor RKHS estimates.
 
 ```{r message=FALSE, warning=FALSE, cache=FALSE}
 set.seed(2)
@@ -229,7 +229,6 @@ ggplot(df, aes(x1, x2, fill = z)) +
 ```
 
 Now let's see what happens if instead of light-tailed Gaussian we have heavy-tailed $t_2$ errors.
-
 
 ```{r message=FALSE, warning = FALSE, cache=FALSE}
 set.seed(2)
