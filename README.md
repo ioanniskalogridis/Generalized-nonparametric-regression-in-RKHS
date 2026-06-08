@@ -178,10 +178,10 @@ predictors $\mathbf{x}_1, \ldots, \mathbf{x}_n \subset [0,1]^2$. The
 data are generated according to
 
 $$y_i = \sum_{j=1}^{25} \sum_{k=1}^{25} (j k)^{-(2 \beta + 1.2)} \sin(2 \pi j  x_{i1}) \sin(2 \pi k x_{i2}) + \epsilon_i, \quad (i=1, \ldots, n),$$
-for $\beta = 0.75$ and $\epsilon_i$ iid Gaussian or Cauchy.
+for $\beta = 0.75$ and $\epsilon_i$ iid Gaussian or $t_2$.
 
 We compare the true regression surface with the least-squares (LS) and
-least-absolute-deviation (LAD) tensor RKHS estimators.
+least-absolute-deviation (LAD) tensor RKHS estimates.
 
 ``` r
 set.seed(2)
