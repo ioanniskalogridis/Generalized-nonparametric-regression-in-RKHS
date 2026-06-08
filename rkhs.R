@@ -2,9 +2,7 @@ setwd("C:/Users/ik77w/OneDrive - University of Glasgow/Documents/GitHub/Generali
 
 library(Rcpp)
 library(RcppArmadillo)
-library(dplyr)
-library(knitr)
-library(kableExtra)
+
 
 sourceCpp("rkhs_quan.cpp")
 
