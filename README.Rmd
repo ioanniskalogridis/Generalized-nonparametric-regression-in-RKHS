@@ -51,7 +51,7 @@ where $X$ is an $n \times d$ matrix of predictors and $y \in \mathbb{R}^n$. ```l
 ```{r message=FALSE, warning = FALSE, cache = FALSE}
 set.seed(11)
 
-n    <- 300 # 
+n    <- 300 
 beta <- 0.75 # one of c(0.5, 0.75, 1.0) 
 p <- 1.2
 
@@ -209,7 +209,6 @@ df <- rbind(
 )
 df$method <- factor(df$method,
                     levels = c("True", "LS", "LAD"))
-
 
 # Plot
 z_range <- range(f_true)
