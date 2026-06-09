@@ -12,7 +12,7 @@ set.seed(456)
 # 2D TARGET GENERATOR
 # ============================================================
 
-generate_f0_2d <- function(beta, K = 25, p = 1.2) {
+generate_f0_2d <- function(beta, K = 25, p = 2/3) {
   
   f0 <- function(X) {
     

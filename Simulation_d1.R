@@ -12,7 +12,7 @@ set.seed(123)
 # 1D TARGET GENERATOR
 # ============================================================
 
-generate_f0_1d <- function(beta, K = 50, p = 1.2) {
+generate_f0_1d <- function(beta, K = 50, p = 2/3) {
   
   k <- 1:K
   coeff <- k^(-(2 * beta + p))
