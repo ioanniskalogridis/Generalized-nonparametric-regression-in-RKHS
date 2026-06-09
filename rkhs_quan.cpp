@@ -4,7 +4,6 @@
 #include <boost/math/special_functions/bessel.hpp>
 #include <cmath>
 
-
 using namespace Rcpp;
 using namespace arma;
 
