@@ -160,7 +160,7 @@ Let us now consider a more complex example with two dimensional predictors $\mat
 $$
 y_i = \sum_{j=1}^{25} \sum_{k=1}^{25} (j k)^{-(2 \beta + 0.6)} \sin(2 \pi j  x_{i1}) \sin(2 \pi k x_{i2}) + \epsilon_i, \quad (i=1, \ldots, n),
 $$
-for $\beta = 0.75$ and $\epsilon_i$ iid Gaussian or $t_2$.
+for $\beta = 0.75$ and $\epsilon_i$ i.i.d. Gaussian or $t_2$.
 
 We compare the true regression surface with the least-squares (LS) and least-absolute-deviation (LAD) tensor RKHS estimates.
 
