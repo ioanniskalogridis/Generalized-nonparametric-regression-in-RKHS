@@ -9,7 +9,7 @@ interface of the reproducing kernel Hilbert space estimators of
 Kalogridis (2026).
 
 The computation is done with **Iteratively Reweighted Least-Squares**
-and the penalty parameter is selected with **robust Generalized Cross
+and the penalty parameter is selected with **robust Ordinary Cross
 Validation**.
 
 Here are detailed installation instructions:
@@ -55,19 +55,19 @@ pred <- predict_rkhs(fit, X, Xnew)
 where $X$ is an $n \times d$ matrix of predictors and
 $y \in \mathbb{R}^n$. `loss` specifies the loss function to be used -
 quantile or ls. `tau` is the quantile to be estimated - only useful for
-the quantile loss. Currently supported kernels are (i) matern (ii)
-Gaussian and (iii) tensor (product kernel). All kernels can be used for
-both one-dimensional and multi-dimensional predictors, see the paper for
-detailed explanations.
+the quantile loss. Currently supported kernels are (i) Mat'ern (ii)
+Gaussian and (iii) tensor Mat'ern (product kernel). All kernels can be
+used for both one-dimensional and multi-dimensional predictors, see the
+paper for detailed explanations.
 
 ## Example 1: One-dimensional data
 
 ``` r
 set.seed(11)
 
-n    <- 300 # 
+n    <- 300 
 beta <- 0.75 # one of c(0.5, 0.75, 1.0) 
-p <- 1.2
+p <- 0.6
 
 K <- 50
 k <- 1:K
@@ -177,7 +177,7 @@ Let us now consider a more complex example with two dimensional
 predictors $\mathbf{x}_1, \ldots, \mathbf{x}_n \subset [0,1]^2$. The
 data are generated according to
 
-$$y_i = \sum_{j=1}^{25} \sum_{k=1}^{25} (j k)^{-(2 \beta + 1.2)} \sin(2 \pi j  x_{i1}) \sin(2 \pi k x_{i2}) + \epsilon_i, \quad (i=1, \ldots, n),$$
+$$y_i = \sum_{j=1}^{25} \sum_{k=1}^{25} (j k)^{-(2 \beta + 0.6)} \sin(2 \pi j  x_{i1}) \sin(2 \pi k x_{i2}) + \epsilon_i, \quad (i=1, \ldots, n),$$
 for $\beta = 0.75$ and $\epsilon_i$ iid Gaussian or $t_2$.
 
 We compare the true regression surface with the least-squares (LS) and
@@ -199,7 +199,7 @@ f0 <- function(X) {
   out <- 0
   for (j in 1:K) {
     for (k in 1:K) {
-      coef <- (j * k)^(-(2 * beta + 1.2))
+      coef <- (j * k)^(-(2 * beta + 0.6))
       out <- out + coef * sin(2*pi*j*X[,1]) * sin(2*pi*k*X[,2])
     }
   }
@@ -228,7 +228,6 @@ df <- rbind(
 )
 df$method <- factor(df$method,
                     levels = c("True", "LS", "LAD"))
-
 
 # Plot
 z_range <- range(f_true)

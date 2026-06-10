@@ -53,7 +53,7 @@ set.seed(11)
 
 n    <- 300 
 beta <- 0.75 # one of c(0.5, 0.75, 1.0) 
-p <- 1.2
+p <- 0.6
 
 K <- 50
 k <- 1:K
@@ -158,7 +158,7 @@ ggplot(df, aes(x=t, y=value, color=method, linetype=method)) +
 Let us now consider a more complex example with two dimensional predictors $\mathbf{x}_1, \ldots, \mathbf{x}_n \subset [0,1]^2$. The data are generated according to
 
 $$
-y_i = \sum_{j=1}^{25} \sum_{k=1}^{25} (j k)^{-(2 \beta + 1.2)} \sin(2 \pi j  x_{i1}) \sin(2 \pi k x_{i2}) + \epsilon_i, \quad (i=1, \ldots, n),
+y_i = \sum_{j=1}^{25} \sum_{k=1}^{25} (j k)^{-(2 \beta + 0.6)} \sin(2 \pi j  x_{i1}) \sin(2 \pi k x_{i2}) + \epsilon_i, \quad (i=1, \ldots, n),
 $$
 for $\beta = 0.75$ and $\epsilon_i$ iid Gaussian or $t_2$.
 
@@ -180,7 +180,7 @@ f0 <- function(X) {
   out <- 0
   for (j in 1:K) {
     for (k in 1:K) {
-      coef <- (j * k)^(-(2 * beta + 1.2))
+      coef <- (j * k)^(-(2 * beta + 0.6))
       out <- out + coef * sin(2*pi*j*X[,1]) * sin(2*pi*k*X[,2])
     }
   }
