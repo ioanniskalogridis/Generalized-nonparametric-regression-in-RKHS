@@ -53,7 +53,7 @@ set.seed(11)
 
 n    <- 300 
 beta <- 0.75 # one of c(0.5, 0.75, 1.0) 
-p <- 0.6
+p <- 2/3
 
 K <- 50
 k <- 1:K
@@ -180,7 +180,7 @@ f0 <- function(X) {
   out <- 0
   for (j in 1:K) {
     for (k in 1:K) {
-      coef <- (j * k)^(-(2 * beta + 0.6))
+      coef <- (j * k)^(-(2 * beta + 2/3))
       out <- out + coef * sin(2*pi*j*X[,1]) * sin(2*pi*k*X[,2])
     }
   }

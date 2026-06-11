@@ -67,7 +67,7 @@ set.seed(11)
 
 n    <- 300 
 beta <- 0.75 # one of c(0.5, 0.75, 1.0) 
-p <- 0.6
+p <- 2/3
 
 K <- 50
 k <- 1:K
@@ -178,7 +178,7 @@ predictors $\mathbf{x}_1, \ldots, \mathbf{x}_n \subset [0,1]^2$. The
 data are generated according to
 
 $$y_i = \sum_{j=1}^{25} \sum_{k=1}^{25} (j k)^{-(2 \beta + 0.6)} \sin(2 \pi j  x_{i1}) \sin(2 \pi k x_{i2}) + \epsilon_i, \quad (i=1, \ldots, n),$$
-for $\beta = 0.75$ and $\epsilon_i$ iid Gaussian or $t_2$.
+for $\beta = 0.75$ and $\epsilon_i$ i.i.d. Gaussian or $t_2$.
 
 We compare the true regression surface with the least-squares (LS) and
 least-absolute-deviation (LAD) tensor RKHS estimates.
@@ -199,7 +199,7 @@ f0 <- function(X) {
   out <- 0
   for (j in 1:K) {
     for (k in 1:K) {
-      coef <- (j * k)^(-(2 * beta + 0.6))
+      coef <- (j * k)^(-(2 * beta + 2/3))
       out <- out + coef * sin(2*pi*j*X[,1]) * sin(2*pi*k*X[,2])
     }
   }
