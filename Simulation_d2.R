@@ -249,3 +249,127 @@ latex_out <- kable(
   )
 
 cat(latex_out)
+
+# Plotting
+# First one-dimensional estimates
+
+library(dplyr)
+library(ggplot2)
+
+grid_d1 <- readRDS("gridfits_d1.rds")
+extract_one_setting <- function(grid_list, target_beta, target_noise) {
+  
+  df_list <- lapply(grid_list, function(obj) {
+    
+    if (obj$beta != target_beta) return(NULL)
+    if (obj$error != target_noise) return(NULL)
+    
+    data.frame(
+      x  = obj$Xg[,1],
+      ls = obj$f_ls,
+      qr = obj$f_q,
+      f0 = obj$f0,
+      beta = obj$beta,
+      noise = obj$error,
+      rep = obj$rep
+    )
+  })
+  
+  bind_rows(df_list)
+}
+
+df_gauss <- extract_one_setting(grid_d1, 0.5, "gaussian")
+
+margin.figs <- 0.01
+setwd("C:/Users/ik77w/OneDrive - University of Glasgow/Research/Robust RKHS")
+pdf("Fig1ls.pdf", width = 5, height = 3.9)
+p_gauss_ls <- ggplot(df_gauss, aes(x = x, y = ls, group = rep)) +
+  geom_line(colour = "grey70", linewidth = 0.65) +
+  geom_line(aes(y = f0), colour = "black", linewidth = 1) +
+  labs(title = "", y = "", x = "") +
+  coord_cartesian(ylim = c(-1.2, 2)) + 
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.margin = margin(margin.figs, margin.figs, margin.figs, margin.figs, unit = "mm"),
+    # axis.ticks = element_line(linewidth = 2, colour = "black"),
+    axis.text = element_text(size = 13, colour = "black"),
+    axis.ticks.length = unit(1.5, "mm")
+  )
+p_gauss_ls
+dev.off()
+
+setwd("C:/Users/ik77w/OneDrive - University of Glasgow/Research/Robust RKHS")
+pdf("Fig1lad.pdf", width = 5, height = 3.9)
+p_gauss_qr <- ggplot(df_gauss, aes(x = x, y = qr, group = rep)) +
+  geom_line(colour = "grey70", linewidth = 0.65) +
+  geom_line(aes(y = f0), colour = "black", linewidth = 1) +
+  labs(title = "", y = "", x = "") +
+  coord_cartesian(ylim = c(-1.2, 2)) + 
+  theme_minimal(base_size = 14) + 
+  theme(
+    plot.margin = margin(margin.figs, margin.figs, margin.figs, margin.figs, unit = "mm"),
+    # axis.ticks = element_line(linewidth = 2, colour = "black"),
+    axis.text = element_text(size = 13, colour = "black"),
+    axis.ticks.length = unit(1.5, "mm")
+  )
+p_gauss_qr
+dev.off()
+
+df_t2 <- extract_one_setting(grid_d1, 0.5, "t2")
+
+setwd("C:/Users/ik77w/OneDrive - University of Glasgow/Research/Robust RKHS")
+pdf("Fig2ls.pdf", width = 5, height = 3.9)
+p_t2_ls <- ggplot(df_t2, aes(x = x, y = ls, group = rep)) +
+  geom_line(colour = "grey70", linewidth = 0.65) +
+  geom_line(aes(y = f0), colour = "black", linewidth = 1) +
+  labs(title = "", y = "", x = "") +
+  coord_cartesian(ylim = c(-1.2, 2)) + 
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.margin = margin(margin.figs, margin.figs, margin.figs, margin.figs, unit = "mm"),
+    # axis.ticks = element_line(linewidth = 2, colour = "black"),
+    axis.text = element_text(size = 13, colour = "black"),
+    axis.ticks.length = unit(1.5, "mm")
+  )
+p_t2_ls
+dev.off()
+
+setwd("C:/Users/ik77w/OneDrive - University of Glasgow/Research/Robust RKHS")
+pdf("Fig2lad.pdf", width = 5, height = 3.9)
+p_t2_qr <- ggplot(df_t2, aes(x = x, y = qr, group = rep)) +
+  geom_line(colour = "grey70", linewidth = 0.65) +
+  geom_line(aes(y = f0), colour = "black", linewidth = 1) +
+  labs(title = "", y = "", x = "") +
+  coord_cartesian(ylim = c(-1.2, 2)) + 
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.margin = margin(margin.figs, margin.figs, margin.figs, margin.figs, unit = "mm"),
+    # axis.ticks = element_line(linewidth = 2, colour = "black"),
+    axis.text = element_text(size = 13, colour = "black"),
+    axis.ticks.length = unit(1.5, "mm")
+  )
+p_t2_qr
+dev.off()
+
+# Two-dimensional estimates now - just representatives
+setwd("C:/Users/ik77w/OneDrive - University of Glasgow/Documents/GitHub/Generalized-nonparametric-regression-in-RKHS")
+grid_d2 <- readRDS("gridfits_d2.rds")
+
+plot_list <- lapply(grid_d2, function(obj) {
+  
+  if (obj$d == 1) return(NULL)  # ignore d = 1
+  
+  data.frame(
+    x1 = obj$Xg[,1],
+    x2 = obj$Xg[,2],
+    f0 = obj$f0,
+    ls = obj$f_ls,
+    qr = obj$f_q,
+    beta = obj$beta,
+    noise = obj$error,
+    rep = obj$rep
+  )
+})
+
+df_grid <- bind_rows(plot_list)
+
