@@ -352,24 +352,92 @@ p_t2_qr
 dev.off()
 
 # Two-dimensional estimates now - just representatives
+
 setwd("C:/Users/ik77w/OneDrive - University of Glasgow/Documents/GitHub/Generalized-nonparametric-regression-in-RKHS")
 grid_d2 <- readRDS("gridfits_d2.rds")
 
-plot_list <- lapply(grid_d2, function(obj) {
-  
-  if (obj$d == 1) return(NULL)  # ignore d = 1
-  
-  data.frame(
-    x1 = obj$Xg[,1],
-    x2 = obj$Xg[,2],
-    f0 = obj$f0,
-    ls = obj$f_ls,
-    qr = obj$f_q,
-    beta = obj$beta,
-    noise = obj$error,
-    rep = obj$rep
-  )
-})
+grid <- as.data.frame(grid_d2$d2_beta0.5_gaussian_rep1$Xg)
+colnames(grid) <- c("x1", "x2")
 
-df_grid <- bind_rows(plot_list)
+f_ls <- grid_d2$d2_beta0.5_gaussian_rep4$f_ls
+f_q <- grid_d2$d2_beta0.5_gaussian_rep4$f_q
+
+f0 <- function(X) {
+  X <- as.matrix(X)
+  out <- rep(0, nrow(X))
+  for (j in 1:25) {
+    for (k in 1:25) {
+      coeff <- (j * k)^(-(2 * 0.75 + 2/3))
+      out <- out +
+        coeff *
+        sin(2 * pi * j * X[,1]) *
+        sin(2 * pi * k * X[,2])
+    }
+  }
+  out
+}
+f_true <- f0(grid)
+
+df <- rbind(
+  data.frame(x1 = grid$x1, x2 = grid$x2, z = f_true, method = "True"),
+  data.frame(x1 = grid$x1, x2 = grid$x2, z = f_ls,   method = "LS"),
+  data.frame(x1 = grid$x1, x2 = grid$x2, z = f_q,    method = "LAD")
+)
+df$method <- factor(df$method, levels = c("True", "LS", "LAD"))
+z_range <- range(f_true)
+
+setwd("C:/Users/ik77w/OneDrive - University of Glasgow/Research/Robust RKHS")
+ggplot(df, aes(x1, x2, fill = z)) +
+  geom_tile() +
+  facet_wrap(~ method, ncol = 3) +
+  scale_fill_viridis_c(option = "C",
+                       limits = z_range,
+                       oob = scales::squish) +
+  theme_minimal(base_size = 13) +
+  labs(x = "", y = "", title = "", fill = "") +
+  theme(
+    panel.spacing = unit(0, "lines"),
+    plot.margin = margin(0, 0, 0, 0),
+    strip.text = element_blank(),
+    legend.text = element_text(size = 20),
+    axis.text = element_text(size = 20, colour = "black"),
+    axis.ticks.length = unit(1.5, "mm"),
+    legend.title = element_text(size = 20)
+  ) + guides(fill = guide_colorbar(barwidth = 2, barheight = 12))
+ggsave("Fig3.pdf", width = 20, height = 9, dpi = 320)
+
+f_ls <- grid_d2$d2_beta0.5_t2_rep4$f_ls
+f_q <- grid_d2$d2_beta0.5_t2_rep4$f_q
+
+df <- rbind(
+  data.frame(x1 = grid$x1, x2 = grid$x2, z = f_true, method = "True"),
+  data.frame(x1 = grid$x1, x2 = grid$x2, z = f_ls,   method = "LS"),
+  data.frame(x1 = grid$x1, x2 = grid$x2, z = f_q,    method = "LAD")
+)
+
+df$method <- factor(df$method, levels = c("True", "LS", "LAD"))
+z_range <- range(f_true)
+
+setwd("C:/Users/ik77w/OneDrive - University of Glasgow/Research/Robust RKHS")
+ggplot(df, aes(x1, x2, fill = z)) +
+  geom_tile() +
+  # geom_raster(interpolate = TRUE) +
+  # coord_fixed() + 
+  # coord_cartesian(xlim = range(df$x1), ylim = range(df$x2)) + 
+  facet_wrap(~ method, ncol = 3) +
+  scale_fill_viridis_c(option = "C",
+                       limits = z_range,
+                       oob = scales::squish) +
+  theme_minimal(base_size = 13) +
+  labs(x = "", y = "", title = "", fill = "") +
+  theme(
+    panel.spacing = unit(0, "lines"),
+    plot.margin = margin(0, 0, 0, 0),
+    strip.text = element_blank(),
+    legend.text = element_text(size = 20),
+    axis.text = element_text(size = 20, colour = "black"),
+    axis.ticks.length = unit(1.5, "mm"),
+    legend.title = element_text(size = 20)
+  ) + guides(fill = guide_colorbar(barwidth = 2, barheight = 12))
+ggsave("Fig4.pdf", width = 20, height = 9, dpi = 320)
 

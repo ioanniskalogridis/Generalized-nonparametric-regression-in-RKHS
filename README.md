@@ -177,11 +177,10 @@ Let us now consider a more complex example with two dimensional
 predictors $\mathbf{x}_1, \ldots, \mathbf{x}_n \subset [0,1]^2$. The
 data are generated according to
 
-$$y_i = \sum_{j=1}^{25} \sum_{k=1}^{25} (j k)^{-(2 \beta + 0.6)} \sin(2 \pi j  x_{i1}) \sin(2 \pi k x_{i2}) + \epsilon_i, \quad (i=1, \ldots, n),$$
-for $\beta = 0.75$ and $\epsilon_i$ i.i.d. Gaussian or $t_2$.
-
-We compare the true regression surface with the least-squares (LS) and
-least-absolute-deviation (LAD) tensor RKHS estimates.
+$$y_i = \sum_{j=1}^{25} \sum_{k=1}^{25} (j k)^{-(2 \beta + 2/3)} \sin(2 \pi j  x_{i1}) \sin(2 \pi k x_{i2}) + \epsilon_i, \quad (i=1, \ldots, n),$$
+for $\epsilon_i$ i.i.d. Gaussian or $t_2$.We compare the true regression
+surface with the least-squares (LS) and least-absolute-deviation (LAD)
+tensor RKHS estimates.
 
 ``` r
 set.seed(2)
@@ -231,18 +230,24 @@ df$method <- factor(df$method,
 
 # Plot
 z_range <- range(f_true)
-padding <- 0.05 * diff(z_range)
 
 ggplot(df, aes(x1, x2, fill = z)) +
   geom_tile() +
   facet_wrap(~ method, ncol = 3) +
   scale_fill_viridis_c(option = "C",
-                       limits = z_range + c(-padding, padding),
+                       limits = z_range,
                        oob = scales::squish) +
-  coord_fixed() +
   theme_minimal(base_size = 13) +
-  labs(x = "", y = "", fill = "f(x)") +
-  theme(strip.text = element_text(face = "bold"))
+  labs(x = "", y = "", title = "", fill = "f(x)") +
+  theme(
+    panel.spacing = unit(0, "lines"),
+    plot.margin = margin(0, 0, 0, 0),
+    strip.text = element_blank(),
+    legend.text = element_text(size = 20),
+    axis.text = element_text(size = 7, colour = "black"),
+    axis.ticks.length = unit(1.5, "mm"),
+    legend.title = element_blank(),
+  ) + guides(fill = guide_colorbar(barwidth = 1.5, barheight = 10))
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
@@ -267,19 +272,26 @@ df <- rbind(
   data.frame(x1 = grid$x1, x2 = grid$x2, z = f_ls,   method = "LS"),
   data.frame(x1 = grid$x1, x2 = grid$x2, z = f_q,    method = "LAD")
 )
-
 df$method <- factor(df$method,
                     levels = c("True", "LS", "LAD"))
 
 ggplot(df, aes(x1, x2, fill = z)) +
   geom_tile() +
   facet_wrap(~ method, ncol = 3) +
-  scale_fill_viridis_c(option = "C", 
-                       limits = c(z_range[1] - padding, z_range[2] + padding)) +  
-  coord_fixed() +
+  scale_fill_viridis_c(option = "C",
+                       limits = z_range,
+                       oob = scales::squish) +
   theme_minimal(base_size = 13) +
-  labs(x = "", y = "", fill = "f(x)") +
-  theme(strip.text = element_text(face = "bold"))
+  labs(x = "", y = "", title = "", fill = "f(x)") +
+  theme(
+    panel.spacing = unit(0, "lines"),
+    plot.margin = margin(0, 0, 0, 0),
+    strip.text = element_blank(),
+    legend.text = element_text(size = 20),
+    axis.text = element_text(size = 7, colour = "black"),
+    axis.ticks.length = unit(1.5, "mm"),
+    legend.title = element_blank(),
+  ) + guides(fill = guide_colorbar(barwidth = 1.5, barheight = 10))
 ```
 
 ![](README_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
