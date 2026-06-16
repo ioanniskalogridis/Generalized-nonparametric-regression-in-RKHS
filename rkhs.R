@@ -3,8 +3,22 @@ setwd("C:/Users/ik77w/OneDrive - University of Glasgow/Documents/GitHub/Generali
 library(Rcpp)
 library(RcppArmadillo)
 
-
+# Import the C++ functions
 sourceCpp("rkhs_quan.cpp")
+
+# fit_rkhs is the wrapper for the C++ functions performing LS and quantile kernel regression
+# X is a matrix of predictors
+# y is the response vector
+# loss is the loss function to be used for the estimation, currently only ls and 
+# quantile are supported
+# kernel refers to the reproducing kernel: currently only gaussian, matern and
+# tensor (product matern) are supported
+# The kernels can be used for univariate as well as for multivariate data
+# tau is the quantile to be estimated
+# s is the smoothness parameter for the matern kernel
+# To generate the sobolev space of order m on R^d use s = m+d/2
+# ls is the bandwidth, by default equal 1
+# lambda_grid are the candidate lambdas to be considered for OCV
 
 fit_rkhs <- function(X, y,
                      loss = c("ls", "quantile"),
@@ -12,9 +26,8 @@ fit_rkhs <- function(X, y,
                      tau = 0.5,
                      s = 2.5,
                      ls = 1.0,
-                     lambda_grid = 10^seq(-7, -1, length.out = 50),
-                     cv = TRUE,
-                     verbose = FALSE) {
+                     lambda_grid = 10^seq(-7, -1, length.out = 50)
+                     ) {
   
   loss <- match.arg(loss)
   kernel <- match.arg(kernel)
@@ -41,10 +54,7 @@ fit_rkhs <- function(X, y,
   }
   
   lambda <- lambda_grid[which.min(scores)]
-  if (verbose) {
-    cat("Selected lambda:", format(lambda, scientific = TRUE), "\n")
-  }
-  
+
   if (loss == "ls") {
     fit <- rkhs_ls(K, y, lambda)
     result <- list(

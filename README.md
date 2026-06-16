@@ -55,8 +55,8 @@ pred <- predict_rkhs(fit, X, Xnew)
 where $X$ is an $n \times d$ matrix of predictors and
 $y \in \mathbb{R}^n$. `loss` specifies the loss function to be used -
 quantile or ls. `tau` is the quantile to be estimated - only useful for
-the quantile loss. Currently supported kernels are (i) Mat'ern (ii)
-Gaussian and (iii) tensor Mat'ern (product kernel). All kernels can be
+the quantile loss. Currently supported kernels are (i) Matérn (ii)
+Gaussian and (iii) tensor Matérn (product kernel). All kernels can be
 used for both one-dimensional and multi-dimensional predictors, see the
 paper for detailed explanations.
 
