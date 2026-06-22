@@ -21,7 +21,7 @@ sourceCpp("rkhs_quan.cpp")
 # lambda_grid are the candidate lambdas to be considered for OCV
 
 fit_rkhs <- function(X, y,
-                     loss = c("ls", "quantile"),
+                     loss = c("ls", "quantile", "huber"),
                      kernel = c("gaussian", "matern", "tensor"),
                      tau = 0.5,
                      s = 2.5,
@@ -45,11 +45,14 @@ fit_rkhs <- function(X, y,
     if (loss == "ls") {
       fit <- rkhs_ls(K, y, lam)
       scores[i] <- rkhs_ls_ocv(K, y, lam)
-    } else {   # quantile
+    } else if (loss == "quantile") {
       fit <- rkhs_quantile_irls(K, y, tau = tau, lambda = lam)
       alpha <- as.numeric(fit$alpha)
       w <- as.numeric(fit$weights)
       scores[i] <- rkhs_quantile_gcv(K, y, alpha, w, lam)
+    } else {   # huber
+      fit <- rkhs_huber_irls(K, y, lambda = lam)
+      scores[i] <- rkhs_huber_gcv(K, y, fit$alpha, fit$weights, lam)
     }
   }
   
@@ -67,7 +70,7 @@ fit_rkhs <- function(X, y,
       ls = ls,
       X_train = X
     )
-  } else {
+  } else if (loss == "quantile") {
     fit <- rkhs_quantile_irls(K, y, tau = tau, lambda = lambda)
     result <- list(
       alpha = fit$alpha,
@@ -77,6 +80,21 @@ fit_rkhs <- function(X, y,
       kernel = kernel,
       loss = "quantile",
       tau = tau,
+      s = s,
+      ls = ls,
+      X_train = X
+    )
+  } else {
+    fit <- rkhs_huber_irls(K, y, lambda = lambda, delta = 1.0)
+    
+    result <- list(
+      alpha = fit$alpha,
+      fitted = fit$fitted,
+      weights = fit$weights,
+      lambda = lambda,
+      kernel = kernel,
+      loss = "huber",
+      delta = 1.0,
       s = s,
       ls = ls,
       X_train = X

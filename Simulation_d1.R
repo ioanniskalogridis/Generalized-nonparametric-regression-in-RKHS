@@ -6,7 +6,7 @@ library(kableExtra)
 
 sourceCpp("rkhs_quan.cpp")
 
-set.seed(123)
+set.seed(666)
 
 # ============================================================
 # 1D TARGET GENERATOR
@@ -64,6 +64,7 @@ for (beta in beta_levels) {
     
     mse_ls <- numeric(B)
     mse_q  <- numeric(B)
+    mse_h <- numeric(B)
     
     f_target <- generate_f0_1d(beta)
     
@@ -104,11 +105,21 @@ for (beta in beta_levels) {
         ls = 1
       )
       
+      fit_h <- fit_rkhs(
+        X, y,
+        loss = "huber",
+        kernel = "matern",
+        s = 2.5,
+        ls = 1
+      )
+      
       f_ls <- predict_rkhs(fit_ls, X, Xg)
       f_q  <- predict_rkhs(fit_q,  X, Xg)
+      f_h <- predict_rkhs(fit_h,  X, Xg)
       
       mse_ls[b] <- mean((f_ls - f0g_fixed)^2)
       mse_q[b]  <- mean((f_q  - f0g_fixed)^2)
+      mse_h[b] <- mean((f_h  - f0g_fixed)^2)
       
       if (b <= store_B) {
         
@@ -126,7 +137,8 @@ for (beta in beta_levels) {
           Xg = Xg,
           f0 = f0g_fixed,
           f_ls = f_ls,
-          f_q = f_q
+          f_q = f_q,
+          f_h = f_h
         )
       }
     }
@@ -141,7 +153,9 @@ for (beta in beta_levels) {
       mse_ls_mean = mean(mse_ls),
       mse_ls_sd = sd(mse_ls) / sqrt(B),
       mse_q_mean = mean(mse_q),
-      mse_q_sd = sd(mse_q) / sqrt(B)
+      mse_q_sd = sd(mse_q) / sqrt(B),
+      mse_h_mean = mean(mse_h),
+      mse_h_sd = sd(mse_h) / sqrt(B)
     )
     
     saveRDS(results, "results_d1_partial.rds")

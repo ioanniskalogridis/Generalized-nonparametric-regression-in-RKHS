@@ -232,6 +232,84 @@ double rkhs_quantile_gcv(const mat &K,
     return mean(w % square(r / (1.0 - h)));
 }
 
+
+// Huber
+
+// [[Rcpp::export]]
+List rkhs_huber_irls(const mat &K,
+                     const vec &y,
+                     double lambda = 1e-4,
+                     double delta = 1.345,
+                     int max_iter = 200,
+                     double tol = 1e-8)
+{
+    uword n = K.n_rows;
+
+    vec alpha(n, fill::zeros);
+    vec w(n, fill::ones);
+
+    for (int k = 0; k < max_iter; k++)
+    {
+        vec f = K * alpha;
+        vec r = y - f;
+
+        for (uword i = 0; i < n; i++)
+        {
+            double ri = r(i);
+
+            if (std::abs(ri) <= delta)
+                w(i) = 1.0;
+            else
+                w(i) = delta / std::abs(ri);
+        }
+
+        mat W = diagmat(w);
+
+        mat A = W * K + 2 * n * lambda * eye(n, n);
+        vec rhs = w % y;
+
+        vec alpha_new;
+
+        if (!solve(alpha_new, A, rhs))
+            break;
+
+        if (norm(alpha_new - alpha, 2) < tol)
+        {
+            alpha = alpha_new;
+            break;
+        }
+
+        alpha = alpha_new;
+    }
+
+    return List::create(
+        Named("alpha") = alpha,
+        Named("fitted") = K * alpha,
+        Named("weights") = w
+    );
+}
+
+// [[Rcpp::export]]
+double rkhs_huber_gcv(const mat &K,
+                      const vec &y,
+                      const vec &alpha,
+                      const vec &w,
+                      double lambda)
+{
+    uword n = K.n_rows;
+
+    vec f = K * alpha;
+    vec r = y - f;
+
+    mat W = diagmat(w);
+    mat A = W * K + 2 * n * lambda * eye(n, n);
+
+    mat H = K * solve(A, W);
+    vec h = H.diag();
+
+    return mean(w % square(r / (1.0 - h)));
+}
+
 // Prediction
 
 // [[Rcpp::export]]

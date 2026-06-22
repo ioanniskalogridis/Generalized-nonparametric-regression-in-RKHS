@@ -3,6 +3,7 @@ library(RcppArmadillo)
 library(dplyr)
 library(knitr)
 library(kableExtra)
+setwd("C:/Users/ik77w/OneDrive - University of Glasgow/Documents/GitHub/Generalized-nonparametric-regression-in-RKHS")
 
 sourceCpp("rkhs_quan.cpp")
 
@@ -12,7 +13,7 @@ set.seed(456)
 # 2D TARGET GENERATOR
 # ============================================================
 
-generate_f0_2d <- function(beta, K = 25, p = 2/3) {
+generate_f0_2d <- function(beta, K = 50, p = 2/3) {
   
   f0 <- function(X) {
     
@@ -42,7 +43,7 @@ generate_f0_2d <- function(beta, K = 25, p = 2/3) {
 # SETTINGS
 # ============================================================
 
-B <- 300
+B <- 500
 n <- 200
 
 beta_levels <- c(0.5, 0.75, 1.0)
@@ -74,6 +75,7 @@ for (beta in beta_levels) {
     
     mse_ls <- numeric(B)
     mse_q  <- numeric(B)
+    mse_h <- numeric(B)
     
     f_target <- generate_f0_2d(beta)
     
@@ -114,11 +116,21 @@ for (beta in beta_levels) {
         ls = 1
       )
       
+      fit_h <- fit_rkhs(
+        X, y,
+        loss = "huber",
+        kernel = "tensor",
+        s = 2.5,
+        ls = 1
+      )
+      
       f_ls <- predict_rkhs(fit_ls, X, Xg)
       f_q  <- predict_rkhs(fit_q,  X, Xg)
+      f_h <- predict_rkhs(fit_h,  X, Xg)
       
       mse_ls[b] <- mean((f_ls - f0g_fixed)^2)
       mse_q[b]  <- mean((f_q  - f0g_fixed)^2)
+      mse_h[b] <- mean((f_h  - f0g_fixed)^2)
       
       if (b <= store_B) {
         
@@ -136,7 +148,8 @@ for (beta in beta_levels) {
           Xg = Xg,
           f0 = f0g_fixed,
           f_ls = f_ls,
-          f_q = f_q
+          f_q = f_q,
+          f_h = f_h
         )
       }
     }
@@ -151,7 +164,9 @@ for (beta in beta_levels) {
       mse_ls_mean = mean(mse_ls),
       mse_ls_sd = sd(mse_ls) / sqrt(B),
       mse_q_mean = mean(mse_q),
-      mse_q_sd = sd(mse_q) / sqrt(B)
+      mse_q_sd = sd(mse_q) / sqrt(B),
+      mse_h_mean = mean(mse_h),
+      mse_h_sd = sd(mse_h) / sqrt(B)
     )
     
     saveRDS(results, "results_d2_partial.rds")
@@ -188,7 +203,9 @@ df <- df %>%
     mse_ls_mean = 10 * mse_ls_mean,
     mse_ls_sd   = 10 * mse_ls_sd,
     mse_q_mean  = 10 * mse_q_mean,
-    mse_q_sd    = 10 * mse_q_sd
+    mse_q_sd    = 10 * mse_q_sd,
+    mse_h_mean  = 10 * mse_h_mean,
+    mse_h_sd    = 10 * mse_h_sd
   )
 
 
@@ -218,7 +235,8 @@ tab <- df %>%
     beta_col,
     noise,
     mse_ls_mean, mse_ls_sd,
-    mse_q_mean, mse_q_sd
+    mse_q_mean, mse_q_sd,
+    mse_h_mean, mse_h_sd
   )
 
 
@@ -228,19 +246,21 @@ latex_out <- kable(
   booktabs = TRUE,
   escape = FALSE,
   digits = 4,
-  align = c("c","c","c","r","r","r","r"),
+  align = c("c","c","c","c","c","c","c", "c", "c"),
   col.names = c(
     "$d$",
     "$\\beta$",
     "Noise",
-    "LS MSE", "LS SE",
-    "QR MSE", "QR SE"
+    "MSE", "SE",
+    "MSE", "SE",
+    "MSE", "SE"
   )
 ) %>%
   add_header_above(c(
     " " = 3,
-    "Least Squares RKHS" = 2,
-    "Quantile RKHS ($\\tau = 0.5$)" = 2
+    "LS" = 2,
+    "LAD" = 2,
+    "Huber" = 2
   )) %>%
   kable_styling(
     latex_options = c("hold_position", "scale_down"),
@@ -403,7 +423,7 @@ ggplot(df, aes(x1, x2, fill = z)) +
     axis.text = element_text(size = 20, colour = "black"),
     axis.ticks.length = unit(1.5, "mm"),
     legend.title = element_text(size = 20)
-  ) + guides(fill = guide_colorbar(barwidth = 2, barheight = 12))
+  ) + guides(fill = guide_colorbar(barwidth = 2, barheight = 18))
 ggsave("Fig3.pdf", width = 20, height = 9, dpi = 320)
 
 f_ls <- grid_d2$d2_beta0.5_t2_rep4$f_ls
@@ -438,6 +458,6 @@ ggplot(df, aes(x1, x2, fill = z)) +
     axis.text = element_text(size = 20, colour = "black"),
     axis.ticks.length = unit(1.5, "mm"),
     legend.title = element_text(size = 20)
-  ) + guides(fill = guide_colorbar(barwidth = 2, barheight = 12))
+  ) + guides(fill = guide_colorbar(barwidth = 2, barheight = 18))
 ggsave("Fig4.pdf", width = 20, height = 9, dpi = 320)
 
