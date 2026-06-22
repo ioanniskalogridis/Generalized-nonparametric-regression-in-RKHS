@@ -1,9 +1,6 @@
 library(Rcpp)
 library(RcppArmadillo)
 library(dplyr)
-library(knitr)
-library(kableExtra)
-
 sourceCpp("rkhs_quan.cpp")
 
 set.seed(666)
