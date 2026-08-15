@@ -24,7 +24,7 @@ fit_rkhs <- function(X, y,
                      loss = c("ls", "quantile", "huber"),
                      kernel = c("gaussian", "matern", "tensor"),
                      tau = 0.5,
-                     s = 2.5,
+                     s = 1.5,
                      ls = 1.0,
                      lambda_grid = 10^seq(-7, -1, length.out = 50)
                      ) {
