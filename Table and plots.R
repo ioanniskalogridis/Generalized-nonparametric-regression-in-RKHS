@@ -252,8 +252,8 @@ ggplot(df, aes(x1, x2, fill = z)) +
   ) + guides(fill = guide_colorbar(barwidth = 2, barheight = 18))
 ggsave("Fig3.pdf", width = 20, height = 9, dpi = 320)
 
-f_ls <- grid_d2$d2_beta0.5_t2_rep4$f_ls
-f_q <- grid_d2$d2_beta0.5_t2_rep4$f_q
+f_ls <- grid_d2$d2_beta0.5_t2_rep2$f_ls
+f_q <- grid_d2$d2_beta0.5_t2_rep2$f_q
 
 df <- rbind(
   data.frame(x1 = grid$x1, x2 = grid$x2, z = f_true, method = "True"),
