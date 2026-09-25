@@ -14,7 +14,7 @@ sourceCpp("rkhs_quan.cpp")
 # The kernels can be used for univariate as well as for multivariate data
 # tau is the quantile to be estimated
 # s is the smoothness parameter for the matern kernel
-# To generate the sobolev space of order m on R^d use s = m+d/2
+# To generate the sobolev space of order m on R^d use s = m-d/2
 # ls is the bandwidth, by default equal 1
 # lambda_grid are the candidate lambdas to be considered for OCV
 
