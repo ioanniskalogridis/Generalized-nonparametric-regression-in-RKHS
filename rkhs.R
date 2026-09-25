@@ -7,7 +7,7 @@ sourceCpp("rkhs_quan.cpp")
 # fit_rkhs is the wrapper for the C++ functions performing LS and quantile kernel regression
 # X is a matrix of predictors
 # y is the response vector
-# loss is the loss function to be used for the estimation, currently only ls and 
+# loss is the loss function to be used for the estimation, currently only ls, huber and 
 # quantile are supported
 # kernel refers to the reproducing kernel: currently only gaussian, matern and
 # tensor (product matern) are supported
@@ -25,7 +25,7 @@ fit_rkhs <- function(X, y,
                      s = 1.5,
                      ls = 1.0,
                      lambda_grid = 10^seq(-7, -1, length.out = 50)
-                     ) {
+) {
   
   loss <- match.arg(loss)
   kernel <- match.arg(kernel)
@@ -55,7 +55,7 @@ fit_rkhs <- function(X, y,
   }
   
   lambda <- lambda_grid[which.min(scores)]
-
+  
   if (loss == "ls") {
     fit <- rkhs_ls(K, y, lambda)
     result <- list(
